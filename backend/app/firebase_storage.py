@@ -20,15 +20,24 @@ def _get_bucket():
         from firebase_admin import credentials, storage
 
         if not firebase_admin._apps:
-            cred_path = settings.FIREBASE_CREDENTIALS_PATH
-            if os.path.exists(cred_path):
-                cred = credentials.Certificate(cred_path)
+            cred_json = os.environ.get("FIREBASE_CREDENTIALS_JSON")
+            if cred_json:
+                import json
+                cred_dict = json.loads(cred_json)
+                cred = credentials.Certificate(cred_dict)
                 firebase_admin.initialize_app(
                     cred, {"storageBucket": settings.FIREBASE_STORAGE_BUCKET}
                 )
             else:
-                print("⚠️  Firebase credentials not found. File uploads will be disabled.")
-                return None
+                cred_path = settings.FIREBASE_CREDENTIALS_PATH
+                if os.path.exists(cred_path):
+                    cred = credentials.Certificate(cred_path)
+                    firebase_admin.initialize_app(
+                        cred, {"storageBucket": settings.FIREBASE_STORAGE_BUCKET}
+                    )
+                else:
+                    print("⚠️  Firebase credentials not found. File uploads will be disabled.")
+                    return None
 
         _bucket = storage.bucket()
         return _bucket
