@@ -86,4 +86,28 @@ Password: admin123
 | `JWT_EXPIRE_MINUTES` | Token expiry (default: 1440 = 24h) |
 | `FIREBASE_CREDENTIALS_PATH` | Path to Firebase service account JSON |
 | `FIREBASE_STORAGE_BUCKET` | Firebase Storage bucket name |
-| `DEV_MODE` | Set to `true` to allow any email domain for students |
+| `DEV_MODE` | Set to `false` in production (enables domain validation) |
+| `FRONTEND_URL` | The URL of your deployed frontend (for CORS) |
+| `VITE_API_URL` | (Frontend env) The URL of your deployed backend API |
+
+---
+
+## Production Deployment
+
+### 1. Build Frontend
+```bash
+cd frontend
+# Create .env or set VITE_API_URL
+echo "VITE_API_URL=https://your-api.com" > .env.production
+npm run build
+```
+
+### 2. Deploy Backend
+- Deploy the `backend` folder to a platform like Heroku, Render, or a VPS.
+- Set all `.env` variables in your platform's dashboard.
+- **IMPORTANT**: Ensure your production server IP is whitelisted in MongoDB Atlas.
+
+### 3. Security
+- Set `DEV_MODE=false`.
+- Ensure `JWT_SECRET` is complex and kept private.
+- Remove `tlsAllowInvalidCertificates=true` from `MONGODB_URI` once you verify your production server's CA certificates are working.

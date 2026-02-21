@@ -15,23 +15,32 @@ EMAIL_REGEX = r"^[a-zA-Z0-9._%+-]+@geetauniversity\.edu\.in$"
 
 @router.post("/admin/login", response_model=dict)
 async def admin_login(data: AdminLogin):
-    admin = await admins_collection.find_one({"email": data.email})
-    if not admin or not verify_password(data.password, admin["passwordHash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-        )
+    try:
+        admin = await admins_collection.find_one({"email": data.email})
+        if not admin or not verify_password(data.password, admin["passwordHash"]):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
 
-    token = create_access_token({"sub": str(admin["_id"]), "role": "admin"})
-    return {
-        "token": token,
-        "user": {
-            "id": str(admin["_id"]),
-            "name": admin["name"],
-            "email": admin["email"],
-            "role": "admin",
-        },
-    }
+        token = create_access_token({"sub": str(admin["_id"]), "role": "admin"})
+        return {
+            "token": token,
+            "user": {
+                "id": str(admin["_id"]),
+                "name": admin["name"],
+                "email": admin["email"],
+                "role": "admin",
+            },
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        print(f"Auth error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authentication service error",
+        )
 
 
 # ─── Student Auth ──────────────────────────────────────────

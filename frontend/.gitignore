@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.env
+./assessment-8b220-firebase-adminsdk-fbsvc-fcb27c697a.json
+backend/assessment-8b220-firebase-adminsdk-fbsvc-fcb27c697a.json

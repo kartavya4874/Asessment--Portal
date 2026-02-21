@@ -1,9 +1,13 @@
 import motor.motor_asyncio
+import certifi
 from app.config import get_settings
 
 settings = get_settings()
 
-client = motor.motor_asyncio.AsyncIOMotorClient(settings.MONGODB_URI)
+client = motor.motor_asyncio.AsyncIOMotorClient(
+    settings.MONGODB_URI,
+    tlsCAFile=certifi.where()
+)
 db = client[settings.DB_NAME]
 
 # Collection references

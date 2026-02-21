@@ -18,7 +18,7 @@ MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
 DB_NAME = os.getenv("DB_NAME", "ai_lab_assessment")
 ADMIN_CREDENTIALS = os.getenv(
     "ADMIN_CREDENTIALS",
-    "Lab Admin|admin@geetauniversity.edu.in|admin123",
+    "Lab Admin|kartavya.baluja@geetauniversity.edu.in|Kartavya.Baluja@123",
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

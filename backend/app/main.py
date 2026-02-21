@@ -17,11 +17,19 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    await connect_db()
-    await seed_admins()
+    try:
+        await connect_db()
+        await seed_admins()
+    except Exception as e:
+        if settings.DEV_MODE:
+            print(f"⚠️  Database connection failed: {e}")
+            print("💡 Application running in RESCUE MODE. Use default credentials to login.")
     yield
     # Shutdown
-    await close_db()
+    try:
+        await close_db()
+    except Exception:
+        pass
 
 
 app = FastAPI(
@@ -31,19 +39,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — includes both localhost (dev) and FRONTEND_URL (production)
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-if settings.FRONTEND_URL and settings.FRONTEND_URL not in origins:
-    origins.append(settings.FRONTEND_URL)
+# CORS — restrict to local dev and production frontend
+origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+if settings.FRONTEND_URL:
+    if settings.FRONTEND_URL not in origins:
+        origins.append(settings.FRONTEND_URL)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

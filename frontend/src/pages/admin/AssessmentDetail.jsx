@@ -53,6 +53,31 @@ export default function AssessmentDetail() {
         } catch (err) { toast.error('Failed to save marks'); }
     };
 
+    const handleBulkSave = async () => {
+        const updates = students
+            .filter(s => s.submission?.id)
+            .map(s => ({
+                submissionId: s.submission.id,
+                marks: s.submission.marks,
+                feedback: s.submission.feedback,
+            }));
+
+        if (updates.length === 0) {
+            toast.error('No submissions to grade');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            await client.put('/marks/bulk', { updates });
+            toast.success(`Updated ${updates.length} submissions!`);
+        } catch (err) {
+            toast.error('Bulk save failed');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const publishMarks = async () => {
         setSaving(true);
         try {
@@ -107,6 +132,14 @@ export default function AssessmentDetail() {
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                             <motion.button className="btn-secondary" onClick={exportExcel} whileHover={{ scale: 1.03 }}>📥 Export Excel</motion.button>
+                            <motion.button
+                                className="btn-secondary"
+                                onClick={handleBulkSave}
+                                disabled={saving}
+                                whileHover={{ scale: 1.03 }}
+                            >
+                                {saving ? 'Saving...' : '💾 Bulk Save Marks'}
+                            </motion.button>
                             <motion.button className="btn-primary" onClick={publishMarks} disabled={saving} whileHover={{ scale: 1.03 }}>
                                 {saving ? 'Publishing...' : '📢 Publish Marks'}
                             </motion.button>

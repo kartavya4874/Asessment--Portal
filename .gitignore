@@ -18,3 +18,5 @@ firebase-credentials.json
 # OS
 .DS_Store
 Thumbs.db
+./assessment-8b220-firebase-adminsdk-fbsvc-fcb27c697a.json
+backend/assessment-8b220-firebase-adminsdk-fbsvc-fcb27c697a.json
