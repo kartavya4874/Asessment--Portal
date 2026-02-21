@@ -44,14 +44,19 @@ async def get_current_user(
         user_id: str = payload.get("sub")
         role: str = payload.get("role")
         if user_id is None or role is None:
+            print(f"DEBUG: Missing sub or role in payload: {payload}")
             raise credentials_exception
+        print(f"DEBUG: Decoded user from token: id={user_id}, role={role}")
         return {"id": user_id, "role": role}
-    except JWTError:
+    except JWTError as e:
+        print(f"DEBUG: JWT Decode Error: {e}")
         raise credentials_exception
 
 
 async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    print(f"DEBUG: Checking admin rights for user: {current_user}")
     if current_user["role"] != "admin":
+        print(f"DEBUG: Access denied. Role: {current_user['role']}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin access required",
