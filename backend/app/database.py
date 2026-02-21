@@ -6,7 +6,8 @@ settings = get_settings()
 
 client = motor.motor_asyncio.AsyncIOMotorClient(
     settings.MONGODB_URI,
-    tlsCAFile=certifi.where()
+    tlsCAFile=certifi.where(),
+    serverSelectionTimeoutMS=5000
 )
 db = client[settings.DB_NAME]
 

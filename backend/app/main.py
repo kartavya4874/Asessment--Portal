@@ -18,12 +18,19 @@ settings = get_settings()
 async def lifespan(app: FastAPI):
     # Startup
     try:
+        print("🚀 Starting up AI Lab Assessment Portal...")
         await connect_db()
         await seed_admins()
+        print("✨ Startup complete! Ready to serve requests.")
     except Exception as e:
-        if settings.DEV_MODE:
-            print(f"⚠️  Database connection failed: {e}")
-            print("💡 Application running in RESCUE MODE. Use default credentials to login.")
+        import traceback
+        print(f"❌ CRITICAL: Application failed to start: {e}", flush=True)
+        traceback.print_exc()
+        # On Cloud Run, we want the process to exit if it can't connect to DB
+        # so that it doesn't just sit there "running" but broken.
+        if not settings.DEV_MODE:
+            import os
+            os._exit(1)
     yield
     # Shutdown
     try:

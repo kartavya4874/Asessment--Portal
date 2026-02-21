@@ -22,12 +22,16 @@ def _get_bucket():
         if not firebase_admin._apps:
             cred_json = os.environ.get("FIREBASE_CREDENTIALS_JSON")
             if cred_json:
-                import json
-                cred_dict = json.loads(cred_json)
-                cred = credentials.Certificate(cred_dict)
-                firebase_admin.initialize_app(
-                    cred, {"storageBucket": settings.FIREBASE_STORAGE_BUCKET}
-                )
+                try:
+                    import json
+                    cred_dict = json.loads(cred_json)
+                    cred = credentials.Certificate(cred_dict)
+                    firebase_admin.initialize_app(
+                        cred, {"storageBucket": settings.FIREBASE_STORAGE_BUCKET}
+                    )
+                except Exception as e:
+                    print(f"❌ ERROR: Failed to parse FIREBASE_CREDENTIALS_JSON: {e}")
+                    return None
             else:
                 cred_path = settings.FIREBASE_CREDENTIALS_PATH
                 if os.path.exists(cred_path):
