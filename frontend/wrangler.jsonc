@@ -3,5 +3,8 @@
   "compatibility_date": "2026-02-21",
   "assets": {
     "directory": "./dist"
+  },
+  "define": {
+    "import.meta.env.VITE_API_URL": "\"https://asessment-portal.onrender.com\""
   }
 }
