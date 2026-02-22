@@ -2,9 +2,7 @@
   "name": "ai-lab-assessment",
   "compatibility_date": "2026-02-21",
   "assets": {
-    "directory": "./dist"
-  },
-  "define": {
-    "import.meta.env.VITE_API_URL": "\"https://asessment-portal.onrender.com\""
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
   }
 }
