@@ -12,6 +12,13 @@ router = APIRouter(prefix="/assessments", tags=["Assessments"])
 
 def compute_status(start_at: datetime, deadline: datetime) -> str:
     now = datetime.now(timezone.utc)
+    
+    # Ensure start_at and deadline are timezone-aware for comparison
+    if start_at.tzinfo is None:
+        start_at = start_at.replace(tzinfo=timezone.utc)
+    if deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+        
     if now < start_at:
         return "Upcoming"
     elif now <= deadline:
@@ -21,8 +28,16 @@ def compute_status(start_at: datetime, deadline: datetime) -> str:
 
 
 def assessment_doc_to_response(doc: dict) -> dict:
-    start_at = doc.get("startAt", datetime.now(timezone.utc))
-    deadline = doc.get("deadline", datetime.now(timezone.utc))
+    now_utc = datetime.now(timezone.utc)
+    start_at = doc.get("startAt", now_utc)
+    deadline = doc.get("deadline", now_utc)
+    
+    # Ensure they are aware
+    if start_at.tzinfo is None:
+        start_at = start_at.replace(tzinfo=timezone.utc)
+    if deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+        
     return {
         "id": str(doc["_id"]),
         "programId": doc.get("programId", ""),
@@ -46,9 +61,11 @@ async def list_assessments(
     if programId:
         query["programId"] = programId
 
+    print(f"DEBUG: list_assessments query: {query}")
     assessments = []
     async for doc in assessments_collection.find(query).sort("createdAt", -1):
         assessments.append(assessment_doc_to_response(doc))
+    print(f"DEBUG: Found {len(assessments)} assessments")
     return assessments
 
 
@@ -64,12 +81,15 @@ async def get_assessment(
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_assessment(data: AssessmentCreate, admin: dict = Depends(require_admin)):
+    print(f"DEBUG: create_assessment data: {data}")
     # Verify program exists
     program = await programs_collection.find_one({"_id": ObjectId(data.programId)})
     if not program:
+        print(f"DEBUG: create_assessment failed - Invalid program: {data.programId}")
         raise HTTPException(status_code=400, detail="Invalid program")
 
     if data.deadline <= data.startAt:
+        print(f"DEBUG: create_assessment failed - Invalid timeline")
         raise HTTPException(status_code=400, detail="Deadline must be after start time")
 
     assessment_doc = {
@@ -84,6 +104,7 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
     }
     result = await assessments_collection.insert_one(assessment_doc)
     assessment_doc["_id"] = result.inserted_id
+    print(f"DEBUG: create_assessment success - ID: {result.inserted_id}")
     return assessment_doc_to_response(assessment_doc)
 
 

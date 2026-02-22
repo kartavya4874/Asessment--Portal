@@ -26,8 +26,12 @@ def _get_bucket():
                     import json
                     cred_dict = json.loads(cred_json)
                     cred = credentials.Certificate(cred_dict)
+                    bucket_name = settings.FIREBASE_STORAGE_BUCKET
+                    if bucket_name.startswith("gs://"):
+                        bucket_name = bucket_name[5:]
+                    
                     firebase_admin.initialize_app(
-                        cred, {"storageBucket": settings.FIREBASE_STORAGE_BUCKET}
+                        cred, {"storageBucket": bucket_name}
                     )
                 except Exception as e:
                     print(f"❌ ERROR: Failed to parse FIREBASE_CREDENTIALS_JSON: {e}")
@@ -36,8 +40,12 @@ def _get_bucket():
                 cred_path = settings.FIREBASE_CREDENTIALS_PATH
                 if os.path.exists(cred_path):
                     cred = credentials.Certificate(cred_path)
+                    bucket_name = settings.FIREBASE_STORAGE_BUCKET
+                    if bucket_name.startswith("gs://"):
+                        bucket_name = bucket_name[5:]
+                        
                     firebase_admin.initialize_app(
-                        cred, {"storageBucket": settings.FIREBASE_STORAGE_BUCKET}
+                        cred, {"storageBucket": bucket_name}
                     )
                 else:
                     print("⚠️  Firebase credentials not found. File uploads will be disabled.")

@@ -20,7 +20,7 @@ def program_doc_to_response(doc: dict) -> dict:
 
 
 @router.get("", response_model=list)
-async def list_programs(current_user: dict = Depends(get_current_user)):
+async def list_programs():
     programs = []
     async for doc in programs_collection.find():
         programs.append(program_doc_to_response(doc))
@@ -28,7 +28,7 @@ async def list_programs(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/{program_id}", response_model=dict)
-async def get_program(program_id: str, current_user: dict = Depends(get_current_user)):
+async def get_program(program_id: str):
     doc = await programs_collection.find_one({"_id": ObjectId(program_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Program not found")

@@ -82,7 +82,10 @@ async def create_or_update_submission(
         raise HTTPException(status_code=404, detail="Assessment not found")
 
     now = datetime.now(timezone.utc)
-    is_late = now > assessment["deadline"]
+    deadline = assessment["deadline"]
+    if deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+    is_late = now > deadline
 
     # Parse URLs
     import json
