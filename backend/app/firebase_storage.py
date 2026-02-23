@@ -62,12 +62,12 @@ async def upload_file_to_firebase(
     file_bytes: bytes,
     destination_path: str,
     content_type: str = "application/octet-stream",
-) -> Optional[str]:
-    """Upload file bytes to Firebase Storage and return public URL."""
+) -> tuple:
+    """Upload file bytes to Firebase Storage and return (url, path) tuple."""
     bucket = _get_bucket()
     if bucket is None:
         # In dev mode without Firebase, return a placeholder URL
-        return f"/local-placeholder/{destination_path}"
+        return f"/local-placeholder/{destination_path}", destination_path
 
     blob = bucket.blob(destination_path)
     blob.upload_from_string(file_bytes, content_type=content_type)
