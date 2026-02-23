@@ -71,8 +71,11 @@ async def upload_file_to_firebase(
 
     blob = bucket.blob(destination_path)
     blob.upload_from_string(file_bytes, content_type=content_type)
-    blob.make_public()
-    return blob.public_url
+    try:
+        blob.make_public()
+    except Exception:
+        pass
+    return blob.public_url, destination_path
 
 
 async def generate_signed_url(

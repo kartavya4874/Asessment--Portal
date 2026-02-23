@@ -77,6 +77,7 @@ export default function Assessments() {
                                     <div style={{ flex: 1 }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                                             <h3 style={{ fontSize: '16px', fontWeight: 600 }}>{assessment.title}</h3>
+                                            {assessment.isLocked && <span>🔒</span>}
                                             {getStatusBadge(assessment.status)}
                                         </div>
                                         <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>

@@ -84,6 +84,7 @@ export default function App() {
                 <Route path="programs" element={<Programs />} />
                 <Route path="assessments" element={<Assessments />} />
                 <Route path="assessments/new" element={<AssessmentForm />} />
+                <Route path="assessments/:id/edit" element={<AssessmentForm />} />
                 <Route path="assessments/:id" element={<AssessmentDetail />} />
                 <Route path="export" element={<ExportAll />} />
               </Route>

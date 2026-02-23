@@ -87,6 +87,20 @@ export default function AssessmentDetail() {
         finally { setSaving(false); }
     };
 
+    const toggleLock = async () => {
+        setSaving(true);
+        try {
+            const endpoint = assessment.isLocked ? `/assessments/${id}/unlock` : `/assessments/${id}/lock`;
+            const { data } = await client.post(endpoint);
+            setAssessment(data);
+            toast.success(assessment.isLocked ? 'Assessment unlocked!' : 'Assessment locked!');
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Failed to toggle lock');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const exportExcel = async () => {
         try {
             const response = await client.get(
@@ -122,6 +136,7 @@ export default function AssessmentDetail() {
                         <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                                 <h1 style={{ fontSize: '24px', fontWeight: 700 }}>{assessment.title}</h1>
+                                {assessment.isLocked && <span style={{ fontSize: '20px' }}>🔒</span>}
                                 <span className={`badge ${statusBadge[assessment.status]}`}>{assessment.status}</span>
                             </div>
                             <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
@@ -131,6 +146,24 @@ export default function AssessmentDetail() {
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
+                            <motion.button
+                                className="btn-secondary"
+                                onClick={() => navigate(`/admin/assessments/${id}/edit`)}
+                                disabled={assessment.isLocked}
+                                whileHover={!assessment.isLocked ? { scale: 1.03 } : {}}
+                                style={{ opacity: assessment.isLocked ? 0.5 : 1 }}
+                            >
+                                ✏️ Edit
+                            </motion.button>
+                            <motion.button
+                                className="btn-secondary"
+                                onClick={toggleLock}
+                                disabled={saving}
+                                whileHover={{ scale: 1.03 }}
+                                style={{ borderColor: assessment.isLocked ? 'var(--urgent)' : 'inherit' }}
+                            >
+                                {assessment.isLocked ? '🔓 Unlock' : '🔒 Lock'}
+                            </motion.button>
                             <motion.button className="btn-secondary" onClick={exportExcel} whileHover={{ scale: 1.03 }}>📥 Export Excel</motion.button>
                             <motion.button
                                 className="btn-secondary"

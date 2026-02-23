@@ -6,6 +6,7 @@ from datetime import datetime
 class SubmittedFile(BaseModel):
     name: str
     url: str
+    path: Optional[str] = None
 
 
 class SubmissionCreate(BaseModel):

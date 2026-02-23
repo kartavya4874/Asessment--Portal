@@ -6,6 +6,7 @@ from datetime import datetime
 class AttachedFile(BaseModel):
     name: str
     url: str
+    path: Optional[str] = None
 
 
 class AssessmentCreate(BaseModel):
@@ -32,5 +33,6 @@ class AssessmentResponse(BaseModel):
     startAt: datetime
     deadline: datetime
     status: str  # Computed: Upcoming / Active / Closed
+    isLocked: bool = False
     createdBy: str
     createdAt: datetime

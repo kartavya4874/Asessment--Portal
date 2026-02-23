@@ -7,17 +7,38 @@ import PageTransition from '../../components/ui/PageTransition';
 import FileUpload from '../../components/ui/FileUpload';
 
 export default function AssessmentForm() {
+    const { id } = useParams();
+    const isEdit = !!id;
     const [programs, setPrograms] = useState([]);
     const [form, setForm] = useState({
         programId: '', title: '', description: '', startAt: '', deadline: '',
     });
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [fetchLoading, setFetchLoading] = useState(isEdit);
     const navigate = useNavigate();
 
     useEffect(() => {
-        client.get('/programs').then(res => setPrograms(res.data)).catch(() => { });
-    }, []);
+        client.get('/programs')
+            .then(res => setPrograms(res.data))
+            .catch(() => { });
+
+        if (isEdit) {
+            client.get(`/assessments/${id}`)
+                .then(res => {
+                    const data = res.data;
+                    setForm({
+                        programId: data.programId,
+                        title: data.title,
+                        description: data.description,
+                        startAt: new Date(data.startAt).toISOString().slice(0, 16),
+                        deadline: new Date(data.deadline).toISOString().slice(0, 16),
+                    });
+                })
+                .catch(() => toast.error('Failed to load assessment'))
+                .finally(() => setFetchLoading(false));
+        }
+    }, [id, isEdit]);
 
     const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -29,36 +50,52 @@ export default function AssessmentForm() {
 
         setLoading(true);
         try {
-            // Create assessment
-            const { data: assessment } = await client.post('/assessments', {
-                ...form,
-                startAt: new Date(form.startAt).toISOString(),
-                deadline: new Date(form.deadline).toISOString(),
-            });
+            let assessmentId = id;
+            if (isEdit) {
+                await client.put(`/assessments/${id}`, {
+                    ...form,
+                    startAt: new Date(form.startAt).toISOString(),
+                    deadline: new Date(form.deadline).toISOString(),
+                });
+                toast.success('Assessment updated!');
+            } else {
+                const { data: assessment } = await client.post('/assessments', {
+                    ...form,
+                    startAt: new Date(form.startAt).toISOString(),
+                    deadline: new Date(form.deadline).toISOString(),
+                });
+                assessmentId = assessment.id;
+                toast.success('Assessment created!');
+            }
 
             // Upload files if any
             if (files.length > 0) {
                 const formData = new FormData();
                 files.forEach(f => formData.append('files', f));
-                await client.post(`/assessments/${assessment.id}/files`, formData, {
+                await client.post(`/assessments/${assessmentId}/files`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
             }
 
-            toast.success('Assessment created!');
-            navigate('/admin/assessments');
+            navigate(`/admin/assessments/${assessmentId}`);
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Failed to create assessment');
+            toast.error(err.response?.data?.detail || `Failed to ${isEdit ? 'update' : 'create'} assessment`);
         } finally {
             setLoading(false);
         }
     };
 
+    if (fetchLoading) return <PageTransition><div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div></PageTransition>;
+
     return (
         <PageTransition>
             <div style={{ maxWidth: '700px' }}>
-                <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '8px' }}>New Assessment</h1>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '28px' }}>Create a new lab assessment for a program</p>
+                <h1 style={{ fontSize: '28px', fontWeight: 700, marginBottom: '8px' }}>
+                    {isEdit ? 'Edit Assessment' : 'New Assessment'}
+                </h1>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '28px' }}>
+                    {isEdit ? 'Update the details of this assessment' : 'Create a new lab assessment for a program'}
+                </p>
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                     <div>

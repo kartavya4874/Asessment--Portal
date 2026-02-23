@@ -5,17 +5,25 @@ from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File,
 from app.database import submissions_collection, assessments_collection, students_collection
 from app.auth import require_student, require_admin, get_current_user
 from app.models.submission import SubmissionCreate, SubmissionResponse
-from app.firebase_storage import upload_file_to_firebase, generate_unique_filename
+from app.firebase_storage import upload_file_to_firebase, generate_unique_filename, generate_signed_url
 
 router = APIRouter(prefix="/submissions", tags=["Submissions"])
 
 
-def submission_doc_to_response(doc: dict) -> dict:
+async def submission_doc_to_response(doc: dict) -> dict:
+    files = doc.get("files", [])
+    # If path exists, generate signed URL for admin viewing
+    for f in files:
+        if f.get("path"):
+            signed_url = await generate_signed_url(f["path"])
+            if signed_url:
+                f["url"] = signed_url
+
     return {
         "id": str(doc["_id"]),
         "assessmentId": doc.get("assessmentId", ""),
         "studentId": doc.get("studentId", ""),
-        "files": doc.get("files", []),
+        "files": files,
         "urls": doc.get("urls", []),
         "textAnswer": doc.get("textAnswer", ""),
         "submittedAt": doc.get("submittedAt", datetime.now(timezone.utc)),
@@ -40,7 +48,7 @@ async def list_submissions(
         student = await students_collection.find_one(
             {"_id": ObjectId(doc["studentId"])}
         )
-        resp = submission_doc_to_response(doc)
+        resp = await submission_doc_to_response(doc)
         if student:
             resp["studentName"] = student.get("name", "")
             resp["studentEmail"] = student.get("email", "")
@@ -61,7 +69,7 @@ async def get_my_submission(
     )
     if not doc:
         return {"submitted": False}
-    resp = submission_doc_to_response(doc)
+    resp = await submission_doc_to_response(doc)
     resp["submitted"] = True
     return resp
 
@@ -102,12 +110,12 @@ async def create_or_update_submission(
                 file_bytes = await file.read()
                 unique_name = generate_unique_filename(file.filename)
                 destination = f"submissions/{student['id']}/{assessmentId}/{unique_name}"
-                url = await upload_file_to_firebase(
+                url, path = await upload_file_to_firebase(
                     file_bytes,
                     destination,
                     file.content_type or "application/octet-stream",
                 )
-                uploaded_files.append({"name": file.filename, "url": url})
+                uploaded_files.append({"name": file.filename, "url": url, "path": path})
 
     # Check if submission exists (upsert)
     existing = await submissions_collection.find_one(
@@ -134,7 +142,7 @@ async def create_or_update_submission(
             {"_id": existing["_id"]}, {"$set": submission_data}
         )
         updated = await submissions_collection.find_one({"_id": existing["_id"]})
-        return submission_doc_to_response(updated)
+        return await submission_doc_to_response(updated)
     else:
         submission_data["files"] = uploaded_files
         submission_data["marks"] = None
@@ -142,7 +150,7 @@ async def create_or_update_submission(
         submission_data["marksPublished"] = False
         result = await submissions_collection.insert_one(submission_data)
         submission_data["_id"] = result.inserted_id
-        return submission_doc_to_response(submission_data)
+        return await submission_doc_to_response(submission_data)
 
 
 @router.get("/students/{assessment_id}", response_model=list)
@@ -176,7 +184,7 @@ async def get_students_for_assessment(
 
         if submission:
             student_data["submissionStatus"] = "Late" if submission.get("isLate") else "Submitted"
-            student_data["submission"] = submission_doc_to_response(submission)
+            student_data["submission"] = await submission_doc_to_response(submission)
         else:
             student_data["submissionStatus"] = "Not Submitted"
             student_data["submission"] = None
