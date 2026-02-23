@@ -44,13 +44,18 @@ export default function AssessmentDetail() {
 
     const saveSingleMark = async (student) => {
         if (!student.submission?.id) { toast.error('No submission to grade'); return; }
+        const marks = student.submission.marks;
+        if (assessment.maxMarks != null && marks != null && marks > assessment.maxMarks) {
+            toast.error(`Marks (${marks}) cannot exceed max marks (${assessment.maxMarks})`);
+            return;
+        }
         try {
             await client.put(`/marks/${student.submission.id}`, {
-                marks: student.submission.marks || 0,
+                marks: marks || 0,
                 feedback: student.submission.feedback || '',
             });
             toast.success(`Marks saved for ${student.name}`);
-        } catch (err) { toast.error('Failed to save marks'); }
+        } catch (err) { toast.error(err.response?.data?.detail || 'Failed to save marks'); }
     };
 
     const handleBulkSave = async () => {
@@ -61,6 +66,15 @@ export default function AssessmentDetail() {
                 marks: s.submission.marks,
                 feedback: s.submission.feedback,
             }));
+
+        // Validate against maxMarks
+        if (assessment.maxMarks != null) {
+            const overflow = updates.filter(u => u.marks != null && u.marks > assessment.maxMarks);
+            if (overflow.length > 0) {
+                toast.error(`${overflow.length} student(s) have marks exceeding max marks (${assessment.maxMarks})`);
+                return;
+            }
+        }
 
         if (updates.length === 0) {
             toast.error('No submissions to grade');
@@ -249,9 +263,12 @@ export default function AssessmentDetail() {
                                                 value={student.submission?.marks ?? ''}
                                                 onChange={(e) => handleMarksChange(idx, 'marks', e.target.value)}
                                                 placeholder="—"
-                                                style={{ width: '60px', padding: '6px 8px', fontSize: '13px' }}
+                                                min="0"
+                                                max={assessment.maxMarks ?? undefined}
+                                                style={{ width: '70px', padding: '6px 8px', fontSize: '13px' }}
                                                 disabled={!student.submission?.id}
                                             />
+                                            {assessment.maxMarks != null && <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '4px' }}>/ {assessment.maxMarks}</span>}
                                         </td>
                                         <td style={{ padding: '12px 16px' }}>
                                             <input

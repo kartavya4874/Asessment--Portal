@@ -1,6 +1,6 @@
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, Depends
-from app.database import submissions_collection
+from fastapi import APIRouter, HTTPException, Depends, status
+from app.database import submissions_collection, assessments_collection
 from app.auth import require_admin
 from app.models.submission import MarksUpdate, BulkMarksUpdate
 
@@ -17,6 +17,16 @@ async def update_marks(
     if not doc:
         raise HTTPException(status_code=404, detail="Submission not found")
 
+    # Validate marks against maxMarks
+    if data.marks is not None:
+        assessment = await assessments_collection.find_one({"_id": ObjectId(doc["assessmentId"])})
+        max_marks = assessment.get("maxMarks") if assessment else None
+        if max_marks is not None and data.marks > max_marks:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Marks ({data.marks}) cannot exceed max marks ({max_marks})",
+            )
+
     await submissions_collection.update_one(
         {"_id": ObjectId(submission_id)},
         {"$set": {"marks": data.marks, "feedback": data.feedback or ""}},
@@ -30,12 +40,25 @@ async def bulk_update_marks(
     admin: dict = Depends(require_admin),
 ):
     updated_count = 0
+    errors = []
     for update in data.updates:
+        sub_doc = await submissions_collection.find_one({"_id": ObjectId(update["submissionId"])})
+        if not sub_doc:
+            continue
+
+        marks_val = update.get("marks")
+        if marks_val is not None:
+            assessment = await assessments_collection.find_one({"_id": ObjectId(sub_doc["assessmentId"])})
+            max_marks = assessment.get("maxMarks") if assessment else None
+            if max_marks is not None and marks_val > max_marks:
+                errors.append(f"Marks ({marks_val}) exceed max ({max_marks})")
+                continue
+
         result = await submissions_collection.update_one(
             {"_id": ObjectId(update["submissionId"])},
             {
                 "$set": {
-                    "marks": update.get("marks"),
+                    "marks": marks_val,
                     "feedback": update.get("feedback", ""),
                 }
             },
@@ -43,7 +66,10 @@ async def bulk_update_marks(
         if result.modified_count > 0:
             updated_count += 1
 
-    return {"message": f"Updated {updated_count} submissions"}
+    msg = f"Updated {updated_count} submissions"
+    if errors:
+        msg += f". Skipped {len(errors)} (marks exceeded max)."
+    return {"message": msg}
 
 
 @router.put("/publish/{assessment_id}", response_model=dict)
