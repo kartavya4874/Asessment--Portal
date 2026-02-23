@@ -4,12 +4,5 @@
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
-  },
-  "routes": [
-    {
-      "pattern": "assessments.kartavyabaluja.in",
-      "custom_domain": true,
-      "override_existing_dns_record": true
-    }
-  ]
+  }
 }
