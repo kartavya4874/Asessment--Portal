@@ -56,6 +56,7 @@ async def assessment_doc_to_response(doc: dict) -> dict:
         "deadline": deadline,
         "status": compute_status(start_at, deadline),
         "isLocked": doc.get("isLocked", False),
+        "maxMarks": doc.get("maxMarks"),
         "createdBy": doc.get("createdBy", ""),
         "createdAt": doc.get("createdAt", datetime.now(timezone.utc)),
     }
@@ -108,6 +109,7 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
         "attachedFiles": [],
         "startAt": data.startAt,
         "deadline": data.deadline,
+        "maxMarks": data.maxMarks,
         "isLocked": False,
         "createdBy": admin["id"],
         "createdAt": datetime.now(timezone.utc),

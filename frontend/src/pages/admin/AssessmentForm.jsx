@@ -11,7 +11,7 @@ export default function AssessmentForm() {
     const isEdit = !!id;
     const [programs, setPrograms] = useState([]);
     const [form, setForm] = useState({
-        programId: '', title: '', description: '', startAt: '', deadline: '',
+        programId: '', title: '', description: '', startAt: '', deadline: '', maxMarks: '',
     });
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -33,6 +33,7 @@ export default function AssessmentForm() {
                         description: data.description,
                         startAt: new Date(data.startAt).toISOString().slice(0, 16),
                         deadline: new Date(data.deadline).toISOString().slice(0, 16),
+                        maxMarks: data.maxMarks ?? '',
                     });
                 })
                 .catch(() => toast.error('Failed to load assessment'))
@@ -54,6 +55,7 @@ export default function AssessmentForm() {
             if (isEdit) {
                 await client.put(`/assessments/${id}`, {
                     ...form,
+                    maxMarks: form.maxMarks ? parseInt(form.maxMarks) : null,
                     startAt: new Date(form.startAt).toISOString(),
                     deadline: new Date(form.deadline).toISOString(),
                 });
@@ -61,6 +63,7 @@ export default function AssessmentForm() {
             } else {
                 const { data: assessment } = await client.post('/assessments', {
                     ...form,
+                    maxMarks: form.maxMarks ? parseInt(form.maxMarks) : null,
                     startAt: new Date(form.startAt).toISOString(),
                     deadline: new Date(form.deadline).toISOString(),
                 });
@@ -123,7 +126,7 @@ export default function AssessmentForm() {
                         />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                         <div>
                             <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Start Date & Time *</label>
                             <input name="startAt" type="datetime-local" value={form.startAt} onChange={handleChange} style={{ width: '100%' }} />
@@ -131,6 +134,10 @@ export default function AssessmentForm() {
                         <div>
                             <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Deadline *</label>
                             <input name="deadline" type="datetime-local" value={form.deadline} onChange={handleChange} style={{ width: '100%' }} />
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Max Marks</label>
+                            <input name="maxMarks" type="number" min="0" value={form.maxMarks} onChange={handleChange} placeholder="e.g., 100" style={{ width: '100%' }} />
                         </div>
                     </div>
 

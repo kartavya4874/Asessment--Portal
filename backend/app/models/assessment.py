@@ -15,6 +15,7 @@ class AssessmentCreate(BaseModel):
     description: str
     startAt: datetime
     deadline: datetime
+    maxMarks: Optional[int] = None
 
 
 class AssessmentUpdate(BaseModel):
@@ -22,6 +23,7 @@ class AssessmentUpdate(BaseModel):
     description: Optional[str] = None
     startAt: Optional[datetime] = None
     deadline: Optional[datetime] = None
+    maxMarks: Optional[int] = None
 
 
 class AssessmentResponse(BaseModel):
@@ -34,5 +36,6 @@ class AssessmentResponse(BaseModel):
     deadline: datetime
     status: str  # Computed: Upcoming / Active / Closed
     isLocked: bool = False
+    maxMarks: Optional[int] = None
     createdBy: str
     createdAt: datetime

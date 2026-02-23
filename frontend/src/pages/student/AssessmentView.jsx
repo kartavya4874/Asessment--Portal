@@ -91,6 +91,7 @@ export default function AssessmentView() {
                             <div style={{ display: 'flex', gap: '12px', fontSize: '13px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                                 <span>📅 Start: {format(new Date(assessment.startAt), 'dd MMM yyyy, HH:mm')}</span>
                                 <span>⏰ Deadline: {format(new Date(assessment.deadline), 'dd MMM yyyy, HH:mm')}</span>
+                                {assessment.maxMarks != null && <span>📝 Max Marks: {assessment.maxMarks}</span>}
                             </div>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
@@ -142,7 +143,9 @@ export default function AssessmentView() {
                 {submission?.marksPublished && submission.marks != null && (
                     <div className="card" style={{ marginBottom: '20px', borderLeftWidth: '3px', borderLeftColor: 'var(--accent-primary)' }}>
                         <h3 style={{ fontSize: '14px', color: 'var(--accent-primary)', marginBottom: '8px' }}>📊 Your Results</h3>
-                        <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--accent-primary)' }}>{submission.marks} marks</div>
+                        <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                            {submission.marks}{assessment.maxMarks != null ? ` / ${assessment.maxMarks}` : ''} marks
+                        </div>
                         {submission.feedback && (
                             <p style={{ marginTop: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>💬 {submission.feedback}</p>
                         )}

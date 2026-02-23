@@ -139,10 +139,11 @@ export default function AssessmentDetail() {
                                 {assessment.isLocked && <span style={{ fontSize: '20px' }}>🔒</span>}
                                 <span className={`badge ${statusBadge[assessment.status]}`}>{assessment.status}</span>
                             </div>
-                            <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                            <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                                 <span>🎓 {getProgramName(assessment.programId)}</span>
                                 <span>📅 {format(new Date(assessment.startAt), 'dd MMM yyyy, HH:mm')}</span>
                                 <span>⏰ {format(new Date(assessment.deadline), 'dd MMM yyyy, HH:mm')}</span>
+                                {assessment.maxMarks != null && <span>📝 Max Marks: {assessment.maxMarks}</span>}
                             </div>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
