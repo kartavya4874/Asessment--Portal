@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import client from '../../api/client';
@@ -141,7 +141,7 @@ export default function AssessmentForm() {
 
                     <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                         <motion.button type="submit" className="btn-primary" disabled={loading} whileHover={{ scale: 1.02 }} style={{ opacity: loading ? 0.7 : 1 }}>
-                            {loading ? 'Creating...' : '✅ Create Assessment'}
+                            {loading ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? '💾 Save Changes' : '✅ Create Assessment')}
                         </motion.button>
                         <button type="button" className="btn-secondary" onClick={() => navigate('/admin/assessments')}>Cancel</button>
                     </div>
