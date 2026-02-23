@@ -46,17 +46,28 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — restrict to local dev and production frontend
+# CORS — allow local dev and production origins
 origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 if settings.FRONTEND_URL:
-    if settings.FRONTEND_URL not in origins:
-        origins.append(settings.FRONTEND_URL)
+    # Allow comma-separated URLs
+    for url in settings.FRONTEND_URL.split(","):
+        url = url.strip().rstrip("/")
+        if url:
+            # Ensure protocol is present
+            if not url.startswith("http"):
+                # Default to both http and https if protocol is missing
+                origins.append(f"http://{url}")
+                origins.append(f"https://{url}")
+            elif url not in origins:
+                origins.append(url)
+
+print(f"📡 CORS origins configured: {origins}")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
