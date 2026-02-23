@@ -101,9 +101,9 @@ export default function StudentRegister() {
                                 </select>
                             </div>
                             <div>
-                                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Year/Semester</label>
+                                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Semester</label>
                                 <select name="year" value={form.year} onChange={handleChange} style={{ width: '100%' }} disabled={!selectedProgram}>
-                                    <option value="">Select Year</option>
+                                    <option value="">Select Semester</option>
                                     {selectedProgram?.years?.map(y => <option key={y} value={y}>{y}</option>)}
                                 </select>
                             </div>
