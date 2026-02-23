@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import client from '../../api/client';
 import PageTransition from '../../components/ui/PageTransition';
 import { SkeletonTable } from '../../components/ui/SkeletonLoader';
+import formatDescription from '../../utils/formatDescription';
 
 export default function AssessmentDetail() {
     const { id } = useParams();
@@ -199,7 +200,7 @@ export default function AssessmentDetail() {
                 {assessment.description && (
                     <div className="card" style={{ marginBottom: '24px' }}>
                         <h3 style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px' }}>Description</h3>
-                        <div style={{ fontSize: '14px', lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: assessment.description }} />
+                        <div style={{ fontSize: '14px', lineHeight: 1.6 }} dangerouslySetInnerHTML={{ __html: formatDescription(assessment.description) }} />
                     </div>
                 )}
 

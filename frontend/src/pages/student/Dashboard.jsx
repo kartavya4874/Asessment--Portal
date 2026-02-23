@@ -54,7 +54,7 @@ export default function StudentDashboard() {
                                         overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
                                         WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
                                     }}>
-                                        {assessment.description.replace(/<[^>]+>/g, '')}
+                                        {assessment.description.replace(/<[^>]+>/g, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/`([^`]+)`/g, '$1')}
                                     </p>
                                 )}
 

@@ -9,6 +9,7 @@ import PageTransition from '../../components/ui/PageTransition';
 import FileUpload from '../../components/ui/FileUpload';
 import CountdownTimer from '../../components/ui/CountdownTimer';
 import { SkeletonCard } from '../../components/ui/SkeletonLoader';
+import formatDescription from '../../utils/formatDescription';
 
 export default function AssessmentView() {
     const { id } = useParams();
@@ -102,7 +103,7 @@ export default function AssessmentView() {
 
                     {assessment.description && (
                         <div style={{ padding: '16px', background: 'var(--bg-secondary)', borderRadius: '10px', fontSize: '14px', lineHeight: 1.7, marginBottom: '16px' }}
-                            dangerouslySetInnerHTML={{ __html: assessment.description }}
+                            dangerouslySetInnerHTML={{ __html: formatDescription(assessment.description) }}
                         />
                     )}
 
