@@ -186,7 +186,7 @@ async def forgot_password(data: ForgotPasswordRequest):
                             "Content-Type": "application/json",
                         },
                         json={
-                            "from": "AI Lab Assessment Portal <onboarding@resend.dev>",
+                            "from": "AI Lab Assessment Portal <noreply@kartavyabaluja.in>",
                             "to": [data.email],
                             "subject": "Password Reset - AI Lab Assessment Portal",
                             "html": email_html,
