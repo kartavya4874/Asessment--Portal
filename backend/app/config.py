@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_PATH: str = "./firebase-credentials.json"
     FIREBASE_STORAGE_BUCKET: str = ""
     DEV_MODE: bool = True
-    FRONTEND_URL: str = "http://localhost:5173"
+    FRONTEND_URL: str = "http://localhost:5173,https://assessments.kartavyabaluja.in"
     CLOUDFLARE_EMAIL_WORKER_URL: str = ""
     RESEND_API_KEY: str = ""
 
