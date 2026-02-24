@@ -81,6 +81,9 @@ export default function AdminLogin() {
                                 style={{ width: '100%' }}
                             />
                         </div>
+                        <div style={{ textAlign: 'right', marginTop: '-8px' }}>
+                            <Link to="/forgot-password" style={{ fontSize: '12px', color: '#6c5ce7', fontWeight: 600 }}>Forgot Password?</Link>
+                        </div>
                         <motion.button
                             type="submit"
                             className="btn-primary"

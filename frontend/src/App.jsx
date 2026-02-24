@@ -14,6 +14,8 @@ const LandingPage = lazy(() => import('./pages/LandingPage'));
 const AdminLogin = lazy(() => import('./pages/auth/AdminLogin'));
 const StudentLogin = lazy(() => import('./pages/auth/StudentLogin'));
 const StudentRegister = lazy(() => import('./pages/auth/StudentRegister'));
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
 const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
 const Programs = lazy(() => import('./pages/admin/Programs'));
 const Assessments = lazy(() => import('./pages/admin/Assessments'));
@@ -75,6 +77,8 @@ export default function App() {
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/student/login" element={<StudentLogin />} />
               <Route path="/student/register" element={<StudentRegister />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
 
               {/* Admin Routes */}
               <Route path="/admin" element={

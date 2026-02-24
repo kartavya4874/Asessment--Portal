@@ -51,6 +51,9 @@ export default function StudentLogin() {
                             <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Password</label>
                             <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={{ width: '100%' }} />
                         </div>
+                        <div style={{ textAlign: 'right', marginTop: '-8px' }}>
+                            <Link to="/forgot-password" style={{ fontSize: '12px', color: '#6c5ce7', fontWeight: 600 }}>Forgot Password?</Link>
+                        </div>
                         <motion.button type="submit" className="btn-primary" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ marginTop: '8px', opacity: loading ? 0.7 : 1 }}>
                             {loading ? 'Signing in...' : 'Sign In'}
                         </motion.button>

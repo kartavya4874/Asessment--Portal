@@ -1,0 +1,7 @@
+name = "assessment-email-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+# Optional: restrict which domains can call this worker
+# [vars]
+# ALLOWED_ORIGIN = "https://your-backend-domain.com"
