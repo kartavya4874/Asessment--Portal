@@ -240,7 +240,13 @@ async def reset_password(data: ResetPasswordRequest):
         )
 
     # Check expiry
-    if datetime.now(timezone.utc) > reset_record["expiresAt"]:
+    expires_at = reset_record["expiresAt"]
+    # Ensure expires_at is timezone-aware for comparison if it's stored as naive
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+        
+    if datetime.now(timezone.utc) > expires_at:
+        print(f"⚠️ Reset code for {data.email} has expired")
         await password_resets_collection.delete_one({"_id": reset_record["_id"]})
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -248,19 +254,28 @@ async def reset_password(data: ResetPasswordRequest):
         )
 
     # Update password
-    new_hash = hash_password(data.newPassword)
-    result = await students_collection.update_one(
-        {"email": data.email},
-        {"$set": {"passwordHash": new_hash}},
-    )
-
-    if result.modified_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not update password. Please try again.",
+    try:
+        new_hash = hash_password(data.newPassword)
+        result = await students_collection.update_one(
+            {"email": data.email},
+            {"$set": {"passwordHash": new_hash}},
         )
 
-    # Clean up used OTP
-    await password_resets_collection.delete_many({"email": data.email})
+        if result.modified_count == 0:
+            print(f"⚠️ No student record updated for {data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Could not update password. Please try again.",
+            )
 
-    return {"message": "Password has been reset successfully. You can now log in."}
+        # Clean up used OTP
+        await password_resets_collection.delete_many({"email": data.email})
+        print(f"✅ Password reset successfully for {data.email}")
+
+        return {"message": "Password has been reset successfully. You can now log in."}
+    except Exception as e:
+        print(f"❌ Error during password update for {data.email}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update password. Please try again later.",
+        )
