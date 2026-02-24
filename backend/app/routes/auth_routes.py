@@ -157,8 +157,51 @@ async def forgot_password(data: ForgotPasswordRequest):
             "createdAt": datetime.now(timezone.utc),
         })
 
-        # Send email via Cloudflare Worker
-        if settings.CLOUDFLARE_EMAIL_WORKER_URL:
+        # Send email via Resend API (direct) or Cloudflare Worker (legacy)
+        email_html = (
+            '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0f0f1a;color:#e4e6eb;border-radius:16px;">'
+            '<h2 style="color:#6c5ce7;margin-bottom:8px;">&#128274; Password Reset</h2>'
+            '<p style="color:#a0a0b0;">AI Lab Assessment Portal</p>'
+            '<hr style="border:1px solid #2d3748;margin:20px 0;" />'
+            "<p>You requested a password reset. Use the OTP below:</p>"
+            '<div style="background:#16213e;border:2px solid #6c5ce7;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">'
+            f'<span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#6c5ce7;">{otp}</span>'
+            "</div>"
+            f'<p style="color:#a0a0b0;font-size:13px;">This code expires in <strong>{OTP_EXPIRY_MINUTES} minutes</strong>.</p>'
+            '<p style="color:#a0a0b0;font-size:13px;">If you did not request this, please ignore this email.</p>'
+            "</div>"
+        )
+
+        email_sent = False
+
+        # Method 1: Direct Resend API (preferred)
+        if settings.RESEND_API_KEY:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=10.0) as http_client:
+                    resp = await http_client.post(
+                        "https://api.resend.com/emails",
+                        headers={
+                            "Authorization": f"Bearer {settings.RESEND_API_KEY}",
+                            "Content-Type": "application/json",
+                        },
+                        json={
+                            "from": "AI Lab Assessment Portal <onboarding@resend.dev>",
+                            "to": [data.email],
+                            "subject": "Password Reset - AI Lab Assessment Portal",
+                            "html": email_html,
+                        },
+                    )
+                    if resp.status_code in (200, 201):
+                        email_sent = True
+                        print(f"✅ Reset email sent to {data.email} via Resend")
+                    else:
+                        print(f"⚠️ Resend API error: {resp.status_code} {resp.text}")
+            except Exception as e:
+                print(f"⚠️ Failed to send via Resend: {e}")
+
+        # Method 2: Cloudflare Worker (fallback)
+        if not email_sent and settings.CLOUDFLARE_EMAIL_WORKER_URL:
             try:
                 import httpx
                 async with httpx.AsyncClient(timeout=10.0) as http_client:
@@ -167,25 +210,16 @@ async def forgot_password(data: ForgotPasswordRequest):
                         json={
                             "to": data.email,
                             "subject": "Password Reset - AI Lab Assessment Portal",
-                            "html": (
-                                '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0f0f1a;color:#e4e6eb;border-radius:16px;">'
-                                '<h2 style="color:#6c5ce7;margin-bottom:8px;">&#128274; Password Reset</h2>'
-                                '<p style="color:#a0a0b0;">AI Lab Assessment Portal</p>'
-                                '<hr style="border:1px solid #2d3748;margin:20px 0;" />'
-                                "<p>You requested a password reset. Use the OTP below:</p>"
-                                '<div style="background:#16213e;border:2px solid #6c5ce7;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">'
-                                f'<span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#6c5ce7;">{otp}</span>'
-                                "</div>"
-                                f'<p style="color:#a0a0b0;font-size:13px;">This code expires in <strong>{OTP_EXPIRY_MINUTES} minutes</strong>.</p>'
-                                '<p style="color:#a0a0b0;font-size:13px;">If you did not request this, please ignore this email.</p>'
-                                "</div>"
-                            ),
+                            "html": email_html,
                         },
                     )
+                    email_sent = True
+                    print(f"✅ Reset email sent to {data.email} via Worker")
             except Exception as e:
-                print(f"⚠️ Failed to send reset email: {e}")
-        else:
-            print(f"⚠️ CLOUDFLARE_EMAIL_WORKER_URL not set. OTP for {data.email}: {otp}")
+                print(f"⚠️ Failed to send via Worker: {e}")
+
+        if not email_sent:
+            print(f"⚠️ No email provider configured. OTP for {data.email}: {otp}")
 
     # Always return success
     return {"message": "If that email is registered, a reset code has been sent."}
