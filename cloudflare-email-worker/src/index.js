@@ -1,11 +1,13 @@
 /**
- * Cloudflare Worker — Send emails via MailChannels API
+ * Cloudflare Worker — Send emails via Resend API
  *
  * POST /  →  { to, subject, html }
  *
- * MailChannels is free for Cloudflare Workers.
- * Make sure you add an SPF TXT record to your sending domain:
- *   v=spf1 include:relay.mailchannels.net -all
+ * Resend free tier: 100 emails/day, 3000/month
+ * Get your API key at https://resend.com/api-keys
+ *
+ * Set RESEND_API_KEY as a Worker secret:
+ *   npx wrangler secret put RESEND_API_KEY
  */
 
 export default {
@@ -28,41 +30,41 @@ export default {
                 );
             }
 
-            // Send via MailChannels
-            const mailResponse = await fetch("https://api.mailchannels.net/tx/v1/send", {
+            const RESEND_API_KEY = env.RESEND_API_KEY;
+            if (!RESEND_API_KEY) {
+                return new Response(
+                    JSON.stringify({ error: "RESEND_API_KEY not configured" }),
+                    { status: 500, headers: { "Content-Type": "application/json" } }
+                );
+            }
+
+            // Send via Resend API
+            const mailResponse = await fetch("https://api.resend.com/emails", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${RESEND_API_KEY}`,
+                },
                 body: JSON.stringify({
-                    personalizations: [
-                        {
-                            to: [{ email: to }],
-                        },
-                    ],
-                    from: {
-                        email: "noreply@kartavyabaluja.in",
-                        name: "AI Lab Assessment Portal",
-                    },
+                    from: "AI Lab Assessment Portal <onboarding@resend.dev>",
+                    to: [to],
                     subject: subject,
-                    content: [
-                        {
-                            type: "text/html",
-                            value: html,
-                        },
-                    ],
+                    html: html,
                 }),
             });
 
-            if (mailResponse.ok || mailResponse.status === 202) {
+            const result = await mailResponse.json();
+
+            if (mailResponse.ok) {
                 return new Response(
-                    JSON.stringify({ success: true, message: "Email sent" }),
+                    JSON.stringify({ success: true, message: "Email sent", id: result.id }),
                     { status: 200, headers: { "Content-Type": "application/json" } }
                 );
             }
 
-            const errorText = await mailResponse.text();
-            console.error("MailChannels error:", errorText);
+            console.error("Resend error:", JSON.stringify(result));
             return new Response(
-                JSON.stringify({ error: "Failed to send email", details: errorText }),
+                JSON.stringify({ error: "Failed to send email", details: result }),
                 { status: 500, headers: { "Content-Type": "application/json" } }
             );
         } catch (err) {
