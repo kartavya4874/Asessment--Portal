@@ -1,16 +1,19 @@
 import re
-from datetime import datetime, timezone
+import secrets
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, status
-from app.database import admins_collection, students_collection, programs_collection
+from app.database import admins_collection, students_collection, programs_collection, password_resets_collection
 from app.auth import hash_password, verify_password, create_access_token
 from app.models.admin import AdminLogin, AdminResponse
-from app.models.student import StudentRegister, StudentLogin, StudentResponse
+from app.models.student import StudentRegister, StudentLogin, StudentResponse, ForgotPasswordRequest, ResetPasswordRequest
 from app.config import get_settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 settings = get_settings()
 
 EMAIL_REGEX = r"^[a-zA-Z0-9._%+-]+@geetauniversity\.edu\.in$"
+
+OTP_EXPIRY_MINUTES = 15
 
 
 @router.post("/admin/login", response_model=dict)
@@ -129,3 +132,101 @@ async def student_login(data: StudentLogin):
             "role": "student",
         },
     }
+
+
+# ─── Password Reset ───────────────────────────────────────
+@router.post("/forgot-password")
+async def forgot_password(data: ForgotPasswordRequest):
+    """
+    Generate a 6-digit OTP and email it via Cloudflare Email Worker.
+    Always returns success so we don't leak whether the email exists.
+    """
+    student = await students_collection.find_one({"email": data.email})
+
+    if student:
+        # Delete any previous OTPs for this email
+        await password_resets_collection.delete_many({"email": data.email})
+
+        otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
+
+        await password_resets_collection.insert_one({
+            "email": data.email,
+            "otp": otp,
+            "expiresAt": expires_at,
+            "createdAt": datetime.now(timezone.utc),
+        })
+
+        # Send email via Cloudflare Worker
+        if settings.CLOUDFLARE_EMAIL_WORKER_URL:
+            try:
+                import httpx
+                async with httpx.AsyncClient(timeout=10.0) as http_client:
+                    await http_client.post(
+                        settings.CLOUDFLARE_EMAIL_WORKER_URL,
+                        json={
+                            "to": data.email,
+                            "subject": "Password Reset - AI Lab Assessment Portal",
+                            "html": (
+                                '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0f0f1a;color:#e4e6eb;border-radius:16px;">'
+                                '<h2 style="color:#6c5ce7;margin-bottom:8px;">&#128274; Password Reset</h2>'
+                                '<p style="color:#a0a0b0;">AI Lab Assessment Portal</p>'
+                                '<hr style="border:1px solid #2d3748;margin:20px 0;" />'
+                                "<p>You requested a password reset. Use the OTP below:</p>"
+                                '<div style="background:#16213e;border:2px solid #6c5ce7;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">'
+                                f'<span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#6c5ce7;">{otp}</span>'
+                                "</div>"
+                                f'<p style="color:#a0a0b0;font-size:13px;">This code expires in <strong>{OTP_EXPIRY_MINUTES} minutes</strong>.</p>'
+                                '<p style="color:#a0a0b0;font-size:13px;">If you did not request this, please ignore this email.</p>'
+                                "</div>"
+                            ),
+                        },
+                    )
+            except Exception as e:
+                print(f"⚠️ Failed to send reset email: {e}")
+        else:
+            print(f"⚠️ CLOUDFLARE_EMAIL_WORKER_URL not set. OTP for {data.email}: {otp}")
+
+    # Always return success
+    return {"message": "If that email is registered, a reset code has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(data: ResetPasswordRequest):
+    """Validate OTP and update password."""
+    reset_record = await password_resets_collection.find_one({
+        "email": data.email,
+        "otp": data.otp,
+    })
+
+    if not reset_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset code",
+        )
+
+    # Check expiry
+    if datetime.now(timezone.utc) > reset_record["expiresAt"]:
+        await password_resets_collection.delete_one({"_id": reset_record["_id"]})
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset code has expired. Please request a new one.",
+        )
+
+    # Update password
+    new_hash = hash_password(data.newPassword)
+    result = await students_collection.update_one(
+        {"email": data.email},
+        {"$set": {"passwordHash": new_hash}},
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not update password. Please try again.",
+        )
+
+    # Clean up used OTP
+    await password_resets_collection.delete_many({"email": data.email})
+
+    return {"message": "Password has been reset successfully. You can now log in."}

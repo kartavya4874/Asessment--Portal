@@ -17,6 +17,7 @@ students_collection = db["students"]
 programs_collection = db["programs"]
 assessments_collection = db["assessments"]
 submissions_collection = db["submissions"]
+password_resets_collection = db["password_resets"]
 
 
 async def connect_db():

@@ -45,3 +45,13 @@ class StudentInDB(BaseModel):
     year: str
     passwordHash: str
     createdAt: datetime
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    newPassword: str

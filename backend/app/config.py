@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     FIREBASE_STORAGE_BUCKET: str = ""
     DEV_MODE: bool = True
     FRONTEND_URL: str = "http://localhost:5173"
+    CLOUDFLARE_EMAIL_WORKER_URL: str = ""
 
     # Format: "name|email|password,name|email|password,..."
     ADMIN_CREDENTIALS: str = "Lab Admin|admin@geetauniversity.edu.in|admin123"
