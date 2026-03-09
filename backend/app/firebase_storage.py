@@ -1,5 +1,6 @@
 import os
 import uuid
+import time
 from datetime import timedelta
 from typing import Optional
 from app.config import get_settings
@@ -8,6 +9,10 @@ settings = get_settings()
 
 # Firebase may not be configured in dev mode
 _bucket = None
+
+# In-memory signed URL cache: {blob_name: (url, expiry_timestamp)}
+_signed_url_cache = {}
+_CACHE_TTL_SECONDS = 30 * 60  # Cache for 30 minutes (URLs expire in 60 min)
 
 
 def _get_bucket():
@@ -81,13 +86,22 @@ async def upload_file_to_firebase(
 async def generate_signed_url(
     blob_name: str, expiration_minutes: int = 60
 ) -> Optional[str]:
-    """Generate a signed URL for a Firebase Storage blob."""
+    """Generate a signed URL for a Firebase Storage blob, with in-memory caching."""
+    # Check cache first
+    now = time.time()
+    cached = _signed_url_cache.get(blob_name)
+    if cached and cached[1] > now:
+        return cached[0]
+
     bucket = _get_bucket()
     if bucket is None:
         return f"/local-placeholder/{blob_name}"
 
     blob = bucket.blob(blob_name)
     url = blob.generate_signed_url(expiration=timedelta(minutes=expiration_minutes))
+
+    # Cache the URL
+    _signed_url_cache[blob_name] = (url, now + _CACHE_TTL_SECONDS)
     return url
 
 

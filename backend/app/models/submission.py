@@ -34,5 +34,4 @@ class MarksUpdate(BaseModel):
 
 
 class BulkMarksUpdate(BaseModel):
-    assessmentId: str
     updates: List[dict]  # [{submissionId, marks, feedback}]

@@ -5,26 +5,25 @@ import { lazy, Suspense } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// ─── Lazy-loaded layouts ────────────────────────────────
-const AdminLayout = lazy(() => import('./components/Layout/AdminLayout'));
-const StudentLayout = lazy(() => import('./components/Layout/StudentLayout'));
+// ─── Direct Imports (removed lazy for instant navigation) ────────
+import AdminLayout from './components/Layout/AdminLayout';
+import StudentLayout from './components/Layout/StudentLayout';
 
-// ─── Lazy-loaded pages ──────────────────────────────────
-const LandingPage = lazy(() => import('./pages/LandingPage'));
-const AdminLogin = lazy(() => import('./pages/auth/AdminLogin'));
-const StudentLogin = lazy(() => import('./pages/auth/StudentLogin'));
-const StudentRegister = lazy(() => import('./pages/auth/StudentRegister'));
-const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
-const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
-const AdminDashboard = lazy(() => import('./pages/admin/Dashboard'));
-const Programs = lazy(() => import('./pages/admin/Programs'));
-const Assessments = lazy(() => import('./pages/admin/Assessments'));
-const AssessmentForm = lazy(() => import('./pages/admin/AssessmentForm'));
-const AssessmentDetail = lazy(() => import('./pages/admin/AssessmentDetail'));
-const ExportAll = lazy(() => import('./pages/admin/ExportAll'));
-const StudentDashboard = lazy(() => import('./pages/student/Dashboard'));
-const AssessmentView = lazy(() => import('./pages/student/AssessmentView'));
-const MyResults = lazy(() => import('./pages/student/MyResults'));
+import LandingPage from './pages/LandingPage';
+import AdminLogin from './pages/auth/AdminLogin';
+import StudentLogin from './pages/auth/StudentLogin';
+import StudentRegister from './pages/auth/StudentRegister';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
+import AdminDashboard from './pages/admin/Dashboard';
+import Programs from './pages/admin/Programs';
+import Assessments from './pages/admin/Assessments';
+import AssessmentForm from './pages/admin/AssessmentForm';
+import AssessmentDetail from './pages/admin/AssessmentDetail';
+import ExportAll from './pages/admin/ExportAll';
+import StudentDashboard from './pages/student/Dashboard';
+import AssessmentView from './pages/student/AssessmentView';
+import MyResults from './pages/student/MyResults';
 
 // ─── Loading fallback ───────────────────────────────────
 function PageLoader() {
@@ -70,7 +69,7 @@ export default function App() {
         />
 
         <Suspense fallback={<PageLoader />}>
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             <Routes>
               {/* Public */}
               <Route path="/" element={<LandingPage />} />

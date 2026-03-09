@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from typing import Optional, List
 from bson import ObjectId
@@ -39,12 +40,15 @@ async def assessment_doc_to_response(doc: dict) -> dict:
         deadline = deadline.replace(tzinfo=timezone.utc)
 
     attached_files = doc.get("attachedFiles", [])
-    # Generate signed URLs for private files
-    for f in attached_files:
-        if f.get("path"):
-            signed_url = await generate_signed_url(f["path"])
-            if signed_url:
-                f["url"] = signed_url
+    # Generate signed URLs concurrently for private files
+    if attached_files:
+        async def _resolve(f):
+            if f.get("path"):
+                signed_url = await generate_signed_url(f["path"])
+                if signed_url:
+                    f["url"] = signed_url
+            return f
+        attached_files = list(await asyncio.gather(*[_resolve(f) for f in attached_files]))
         
     return {
         "id": str(doc["_id"]),
@@ -72,9 +76,8 @@ async def list_assessments(
         query["programId"] = programId
 
     print(f"DEBUG: list_assessments query: {query}")
-    assessments = []
-    async for doc in assessments_collection.find(query).sort("createdAt", -1):
-        assessments.append(await assessment_doc_to_response(doc))
+    docs = await assessments_collection.find(query).sort("createdAt", -1).to_list(length=None)
+    assessments = list(await asyncio.gather(*[assessment_doc_to_response(doc) for doc in docs]))
     print(f"DEBUG: Found {len(assessments)} assessments")
     return assessments
 

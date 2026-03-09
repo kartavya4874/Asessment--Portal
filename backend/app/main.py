@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
-from app.database import connect_db, close_db
+from app.database import connect_db, close_db, setup_indexes
 from app.seed_admins import seed_admins
 from app.routes.auth_routes import router as auth_router
 from app.routes.program_routes import router as program_router
@@ -20,6 +20,7 @@ async def lifespan(app: FastAPI):
     try:
         print("🚀 Starting up AI Lab Assessment Portal...")
         await connect_db()
+        await setup_indexes()
         await seed_admins()
         print("✨ Startup complete! Ready to serve requests.")
     except Exception as e:

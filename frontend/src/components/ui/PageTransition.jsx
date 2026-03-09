@@ -8,8 +8,8 @@ const pageVariants = {
 
 const pageTransition = {
     type: 'tween',
-    ease: 'easeInOut',
-    duration: 0.3,
+    ease: 'easeOut',
+    duration: 0.15,
 };
 
 export default function PageTransition({ children }) {
@@ -34,7 +34,7 @@ export function StaggerContainer({ children, className = '' }) {
             initial="initial"
             animate="animate"
             variants={{
-                animate: { transition: { staggerChildren: 0.08 } },
+                animate: { transition: { staggerChildren: 0.04 } },
             }}
         >
             {children}
@@ -50,7 +50,7 @@ export function StaggerItem({ children, className = '' }) {
                 initial: { opacity: 0, y: 20 },
                 animate: { opacity: 1, y: 0 },
             }}
-            transition={{ duration: 0.3 }}
+            transition={{ duration: 0.15 }}
         >
             {children}
         </motion.div>

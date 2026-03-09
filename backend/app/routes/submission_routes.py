@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional, List
+import asyncio
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
 from app.database import submissions_collection, assessments_collection, students_collection
@@ -12,12 +13,15 @@ router = APIRouter(prefix="/submissions", tags=["Submissions"])
 
 async def submission_doc_to_response(doc: dict) -> dict:
     files = doc.get("files", [])
-    # If path exists, generate signed URL for admin viewing
-    for f in files:
-        if f.get("path"):
-            signed_url = await generate_signed_url(f["path"])
-            if signed_url:
-                f["url"] = signed_url
+    # Generate signed URLs concurrently for all files
+    if files:
+        async def _resolve_file_url(f):
+            if f.get("path"):
+                signed_url = await generate_signed_url(f["path"])
+                if signed_url:
+                    f["url"] = signed_url
+            return f
+        files = list(await asyncio.gather(*[_resolve_file_url(f) for f in files]))
 
     return {
         "id": str(doc["_id"]),
@@ -167,14 +171,18 @@ async def get_students_for_assessment(
 
     program_id = assessment["programId"]
 
+    # Batch-fetch all submissions for this assessment in one query
+    all_submissions = {}
+    async for sub in submissions_collection.find({"assessmentId": assessment_id}):
+        all_submissions[sub["studentId"]] = sub
+
     students = []
     async for student in students_collection.find({"programId": program_id}):
-        submission = await submissions_collection.find_one(
-            {"assessmentId": assessment_id, "studentId": str(student["_id"])}
-        )
+        sid = str(student["_id"])
+        submission = all_submissions.get(sid)
 
         student_data = {
-            "id": str(student["_id"]),
+            "id": sid,
             "name": student.get("name", ""),
             "email": student.get("email", ""),
             "rollNumber": student.get("rollNumber", ""),
