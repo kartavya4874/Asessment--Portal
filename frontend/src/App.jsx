@@ -20,6 +20,9 @@ import Programs from './pages/admin/Programs';
 import Assessments from './pages/admin/Assessments';
 import AssessmentForm from './pages/admin/AssessmentForm';
 import AssessmentDetail from './pages/admin/AssessmentDetail';
+import StudentDetail from './pages/admin/StudentDetail';
+import Students from './pages/admin/Students';
+import AdminStudentDashboard from './pages/admin/AdminStudentDashboard';
 import ExportAll from './pages/admin/ExportAll';
 import StudentDashboard from './pages/student/Dashboard';
 import AssessmentView from './pages/student/AssessmentView';
@@ -85,10 +88,13 @@ export default function App() {
               }>
                 <Route index element={<AdminDashboard />} />
                 <Route path="programs" element={<Programs />} />
+                <Route path="students" element={<Students />} />
                 <Route path="assessments" element={<Assessments />} />
                 <Route path="assessments/new" element={<AssessmentForm />} />
                 <Route path="assessments/:id/edit" element={<AssessmentForm />} />
                 <Route path="assessments/:id" element={<AssessmentDetail />} />
+                <Route path="assessments/:id/student/:studentId" element={<StudentDetail />} />
+                <Route path="students/:id" element={<AdminStudentDashboard />} />
                 <Route path="export" element={<ExportAll />} />
               </Route>
 

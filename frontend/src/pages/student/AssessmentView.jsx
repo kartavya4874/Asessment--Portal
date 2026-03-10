@@ -130,13 +130,38 @@ export default function AssessmentView() {
                             Last submitted: {format(new Date(submission.submittedAt), 'dd MMM yyyy, HH:mm')}
                         </p>
                         {submission.files?.length > 0 && (
-                            <div style={{ marginTop: '8px' }}>
+                            <div style={{ marginTop: '10px' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>📄 Uploaded Files</div>
                                 {submission.files.map((f, i) => (
-                                    <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: '12px', marginBottom: '4px' }}>📄 {f.name}</a>
+                                    <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: '13px', marginBottom: '4px', color: 'var(--accent-primary)' }}>
+                                        {f.name}
+                                    </a>
                                 ))}
                             </div>
                         )}
-                        {isActive && <p style={{ fontSize: '12px', color: 'var(--accent-secondary)', marginTop: '8px' }}>You can re-submit below to update your work.</p>}
+                        {submission.urls?.length > 0 && (
+                            <div style={{ marginTop: '10px' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>🔗 Submitted Links</div>
+                                {submission.urls.map((u, i) => (
+                                    <a key={i} href={u} target="_blank" rel="noopener noreferrer"
+                                        style={{ display: 'block', fontSize: '13px', marginBottom: '4px', color: 'var(--accent-primary)', wordBreak: 'break-all' }}>
+                                        {u}
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+                        {submission.textAnswer && (
+                            <div style={{ marginTop: '10px' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>📝 Text Answer</div>
+                                <p style={{
+                                    fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.5,
+                                    padding: '10px', background: 'var(--bg-secondary)', borderRadius: '6px'
+                                }}>
+                                    {submission.textAnswer}
+                                </p>
+                            </div>
+                        )}
+                        {isActive && <p style={{ fontSize: '12px', color: 'var(--accent-secondary)', marginTop: '10px' }}>You can re-submit below to update your work.</p>}
                     </div>
                 )}
 

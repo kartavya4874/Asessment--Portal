@@ -12,6 +12,7 @@ export default function Assessments() {
     const [assessments, setAssessments] = useState([]);
     const [programs, setPrograms] = useState([]);
     const [filterProgram, setFilterProgram] = useState('');
+    const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
@@ -43,7 +44,13 @@ export default function Assessments() {
                         <h1 style={{ fontSize: '28px', fontWeight: 700 }}>Assessments</h1>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>Create and manage lab assessments</p>
                     </div>
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <input
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            placeholder="🔍 Search assessments..."
+                            style={{ padding: '10px 14px', minWidth: '200px' }}
+                        />
                         <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} style={{ padding: '10px 14px', minWidth: '180px' }}>
                             <option value="">All Programs</option>
                             {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -66,7 +73,11 @@ export default function Assessments() {
                     </div>
                 ) : (
                     <StaggerContainer style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {assessments.map(assessment => (
+                        {assessments.filter(a => {
+                            if (!search.trim()) return true;
+                            const q = search.toLowerCase();
+                            return a.title.toLowerCase().includes(q) || (a.description || '').toLowerCase().includes(q);
+                        }).map(assessment => (
                             <StaggerItem key={assessment.id}>
                                 <motion.div
                                     className="card"

@@ -1,45 +1,51 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import client from '../../api/client';
-import { useAuth } from '../../context/AuthContext';
 import PageTransition from '../../components/ui/PageTransition';
 import { StaggerContainer, StaggerItem } from '../../components/ui/PageTransition';
-import { SkeletonCard } from '../../components/ui/SkeletonLoader';
-import CountdownTimer from '../../components/ui/CountdownTimer';
+import { SkeletonCard, SkeletonTable } from '../../components/ui/SkeletonLoader';
 
-export default function StudentDashboard() {
-    const { user } = useAuth();
+export default function AdminStudentDashboard() {
+    const { id } = useParams();
+    const navigate = useNavigate();
+    const [student, setStudent] = useState(null);
     const [assessments, setAssessments] = useState([]);
     const [submissions, setSubmissions] = useState({});
     const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchAll = async () => {
             try {
+                // 1. Fetch student details
+                const { data: studentData } = await client.get(`/students/${id}`);
+                setStudent(studentData);
+
+                // 2. Fetch all assessments for their program
                 const { data: assessmentList } = await client.get('/assessments', {
-                    params: { programId: user.programId },
+                    params: { programId: studentData.programId }
                 });
                 setAssessments(assessmentList);
 
-                // Fetch submissions for each assessment
+                // 3. Fetch all their past submissions
+                const { data: historyList } = await client.get(`/submissions/student/${id}/history`);
+
+                // Map history to an object by assessmentId
                 const subsMap = {};
-                await Promise.all(assessmentList.map(async (a) => {
-                    try {
-                        const { data } = await client.get('/submissions/my', {
-                            params: { assessmentId: a.id },
-                        });
-                        if (data.submitted) subsMap[a.id] = data;
-                    } catch { /* skip */ }
-                }));
+                historyList.forEach(sub => {
+                    subsMap[sub.assessmentId] = sub;
+                });
                 setSubmissions(subsMap);
-            } catch { }
-            finally { setLoading(false); }
+
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setLoading(false);
+            }
         };
         fetchAll();
-    }, [user.programId]);
+    }, [id]);
 
     const activeAssessments = assessments.filter(a => a.status === 'Active');
     const upcomingAssessments = assessments.filter(a => a.status === 'Upcoming');
@@ -79,7 +85,7 @@ export default function StudentDashboard() {
                                     className="card"
                                     whileHover={{ y: -4, scale: 1.01 }}
                                     style={{ cursor: 'pointer' }}
-                                    onClick={() => navigate(`/student/assessment/${assessment.id}`)}
+                                    onClick={() => navigate(`/admin/assessments/${assessment.id}/student/${id}`)}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                                         <h3 style={{ fontSize: '16px', fontWeight: 600, flex: 1 }}>{assessment.title}</h3>
@@ -93,34 +99,26 @@ export default function StudentDashboard() {
                                         </div>
                                     </div>
 
-                                    {assessment.description && (
-                                        <p style={{
-                                            color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px',
-                                            overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box',
-                                            WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                                        }}>
-                                            {assessment.description.replace(/<[^>]+>/g, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*]+)\*/g, '$1').replace(/`([^`]+)`/g, '$1')}
-                                        </p>
-                                    )}
-
                                     {/* Show marks if published */}
-                                    {hasMarks && (
+                                    {(hasMarks || sub?.marks != null) && (
                                         <div style={{
                                             padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: '8px',
                                             marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px',
                                         }}>
-                                            <span style={{ fontSize: '20px', fontWeight: 700, color: 'var(--accent-primary)' }}>
+                                            <span style={{ fontSize: '20px', fontWeight: 700, color: sub.marksPublished ? 'var(--accent-primary)' : 'var(--accent-secondary)' }}>
                                                 {sub.marks}{assessment.maxMarks != null ? ` / ${assessment.maxMarks}` : ''}
                                             </span>
-                                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>marks</span>
+                                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                                {sub.marksPublished ? 'marks' : 'marks (not published)'}
+                                            </span>
                                             {sub.feedback && (
                                                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: 'auto' }}>💬 {sub.feedback}</span>
                                             )}
                                         </div>
                                     )}
 
-                                    {/* Show submitted content summary for closed assessments */}
-                                    {sub && assessment.status === 'Closed' && !hasMarks && (
+                                    {/* Show submitted content summary */}
+                                    {sub && !hasMarks && sub.marks == null && (
                                         <div style={{
                                             padding: '8px 12px', background: 'var(--bg-secondary)', borderRadius: '8px',
                                             marginBottom: '12px', fontSize: '12px', color: 'var(--text-secondary)',
@@ -133,20 +131,14 @@ export default function StudentDashboard() {
                                         </div>
                                     )}
 
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: 'auto' }}>
                                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                                             📅 {format(new Date(assessment.startAt), 'dd MMM')} — {format(new Date(assessment.deadline), 'dd MMM yyyy')}
                                         </div>
-                                        {assessment.status !== 'Closed' && (
-                                            <CountdownTimer deadline={assessment.deadline} />
-                                        )}
+                                        <span style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: 500 }}>
+                                            View Details →
+                                        </span>
                                     </div>
-
-                                    {assessment.attachedFiles?.length > 0 && (
-                                        <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                                            📎 {assessment.attachedFiles.length} file{assessment.attachedFiles.length > 1 ? 's' : ''} attached
-                                        </div>
-                                    )}
                                 </motion.div>
                             </StaggerItem>
                         );
@@ -156,18 +148,57 @@ export default function StudentDashboard() {
         )
     );
 
+    if (loading) return (
+        <PageTransition>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <SkeletonCard />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
+                    {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
+                </div>
+            </div>
+        </PageTransition>
+    );
+
+    if (!student) return (
+        <PageTransition>
+            <div className="card" style={{ textAlign: 'center', padding: '60px' }}>
+                <p style={{ color: 'var(--error)' }}>Student not found.</p>
+                <button className="btn-secondary" onClick={() => navigate('/admin/students')} style={{ marginTop: '16px' }}>← Back to Students</button>
+            </div>
+        </PageTransition>
+    );
+
     return (
         <PageTransition>
             <div>
-                <div style={{ marginBottom: '28px' }}>
-                    <h1 style={{ fontSize: '28px', fontWeight: 700 }}>Welcome, {user?.name} 👋</h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
-                        {user?.specialization} • {user?.year}
-                    </p>
+                {/* Header / Back button */}
+                <button onClick={() => navigate('/admin/students')}
+                    style={{ background: 'none', color: 'var(--text-secondary)', fontSize: '13px', marginBottom: '16px', cursor: 'pointer', border: 'none' }}>
+                    ← Back to Students
+                </button>
+
+                <div className="card" style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', alignItems: 'center' }}>
+                    <div>
+                        <h1 style={{ fontSize: '24px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{
+                                width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 700, color: '#fff'
+                            }}>
+                                {student.name?.charAt(0)?.toUpperCase()}
+                            </span>
+                            {student.name} Dashboard
+                        </h1>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '13px', marginTop: '8px', display: 'flex', gap: '16px' }}>
+                            <span>🆔 {student.rollNumber}</span>
+                            <span>📧 {student.email}</span>
+                            <span>📚 {student.specialization}</span>
+                            <span>📅 {student.year}</span>
+                        </p>
+                    </div>
                 </div>
 
                 {/* Overall Stats */}
-                {!loading && assessments.length > 0 && (
+                {assessments.length > 0 && (
                     <div style={{
                         display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
                         gap: '12px', marginBottom: '32px',
@@ -195,15 +226,11 @@ export default function StudentDashboard() {
                     </div>
                 )}
 
-                {loading ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
-                        {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
-                    </div>
-                ) : assessments.length === 0 ? (
+                {assessments.length === 0 ? (
                     <div className="card" style={{ textAlign: 'center', padding: '60px' }}>
                         <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
                         <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>No Assessments</h3>
-                        <p style={{ color: 'var(--text-secondary)' }}>Your program doesn't have any assessments yet.</p>
+                        <p style={{ color: 'var(--text-secondary)' }}>This student's program doesn't have any assessments yet.</p>
                     </div>
                 ) : (
                     <>
@@ -216,4 +243,3 @@ export default function StudentDashboard() {
         </PageTransition>
     );
 }
-

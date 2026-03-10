@@ -16,6 +16,12 @@ export default function AssessmentDetail() {
     const [programs, setPrograms] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showCopyModal, setShowCopyModal] = useState(false);
+    const [selectedCopyPrograms, setSelectedCopyPrograms] = useState([]);
+    const [tableSearch, setTableSearch] = useState('');
+    const [sortBy, setSortBy] = useState('rollNumber');
+    const [copying, setCopying] = useState(false);
 
     useEffect(() => {
         const fetch = async () => {
@@ -133,6 +139,46 @@ export default function AssessmentDetail() {
         } catch (err) { toast.error('Export failed'); }
     };
 
+    const deleteAssessment = async () => {
+        setSaving(true);
+        try {
+            await client.delete(`/assessments/${id}`);
+            toast.success('Assessment deleted!');
+            navigate('/admin/assessments');
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Failed to delete');
+        } finally {
+            setSaving(false);
+            setShowDeleteConfirm(false);
+        }
+    };
+
+    const copyToPrograms = async () => {
+        if (selectedCopyPrograms.length === 0) {
+            toast.error('Select at least one program');
+            return;
+        }
+        setCopying(true);
+        try {
+            const { data } = await client.post(`/assessments/${id}/copy`, {
+                targetProgramIds: selectedCopyPrograms,
+            });
+            toast.success(`Copied to ${data.length} program(s)!`);
+            setShowCopyModal(false);
+            setSelectedCopyPrograms([]);
+        } catch (err) {
+            toast.error(err.response?.data?.detail || 'Copy failed');
+        } finally {
+            setCopying(false);
+        }
+    };
+
+    const toggleCopyProgram = (pid) => {
+        setSelectedCopyPrograms(prev =>
+            prev.includes(pid) ? prev.filter(p => p !== pid) : [...prev, pid]
+        );
+    };
+
     const getProgramName = (pid) => programs.find(p => p.id === pid)?.name || 'Unknown';
 
     if (loading) return <PageTransition><SkeletonTable rows={8} /></PageTransition>;
@@ -180,6 +226,7 @@ export default function AssessmentDetail() {
                             >
                                 {assessment.isLocked ? '🔓 Unlock' : '🔒 Lock'}
                             </motion.button>
+                            <motion.button className="btn-secondary" onClick={() => setShowCopyModal(true)} whileHover={{ scale: 1.03 }}>📋 Copy To Programs</motion.button>
                             <motion.button className="btn-secondary" onClick={exportExcel} whileHover={{ scale: 1.03 }}>📥 Export Excel</motion.button>
                             <motion.button
                                 className="btn-secondary"
@@ -191,6 +238,15 @@ export default function AssessmentDetail() {
                             </motion.button>
                             <motion.button className="btn-primary" onClick={publishMarks} disabled={saving} whileHover={{ scale: 1.03 }}>
                                 {saving ? 'Publishing...' : '📢 Publish Marks'}
+                            </motion.button>
+                            <motion.button
+                                className="btn-secondary"
+                                onClick={() => setShowDeleteConfirm(true)}
+                                disabled={saving || assessment.isLocked}
+                                whileHover={{ scale: 1.03 }}
+                                style={{ borderColor: 'var(--error)', color: 'var(--error)', opacity: assessment.isLocked ? 0.4 : 1 }}
+                            >
+                                🗑️ Delete
                             </motion.button>
                         </div>
                     </div>
@@ -221,8 +277,22 @@ export default function AssessmentDetail() {
 
                 {/* Students Table */}
                 <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                    <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                         <h3 style={{ fontSize: '16px', fontWeight: 600 }}>Student Submissions ({students.length})</h3>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                            <input
+                                value={tableSearch}
+                                onChange={e => setTableSearch(e.target.value)}
+                                placeholder="🔍 Search name or roll..."
+                                style={{ padding: '7px 12px', fontSize: '13px', minWidth: '180px' }}
+                            />
+                            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ padding: '7px 12px', fontSize: '13px' }}>
+                                <option value="rollNumber">Sort: Roll No</option>
+                                <option value="year">Sort: Year/Sem</option>
+                                <option value="name">Sort: Name</option>
+                                <option value="status">Sort: Status</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div style={{ overflowX: 'auto' }}>
@@ -235,64 +305,86 @@ export default function AssessmentDetail() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {students.map((student, idx) => (
-                                    <tr key={student.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                        <td style={{ padding: '12px 16px', fontWeight: 600 }}>{student.rollNumber}</td>
-                                        <td style={{ padding: '12px 16px' }}>{student.name}</td>
-                                        <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{student.specialization}</td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            <span className={`badge badge-${student.submissionStatus === 'Submitted' ? 'submitted' : student.submissionStatus === 'Late' ? 'late' : 'not-submitted'}`}>
-                                                {student.submissionStatus}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            {student.submission?.files?.map((f, i) => (
-                                                <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>📄 {f.name}</a>
-                                            )) || '—'}
-                                        </td>
-                                        <td style={{ padding: '12px 16px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                            {student.submission?.textAnswer || '—'}
-                                        </td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            {student.submission?.urls?.map((u, i) => (
-                                                <a key={i} href={u} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>🔗 Link {i + 1}</a>
-                                            )) || '—'}
-                                        </td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            <input
-                                                type="number"
-                                                value={student.submission?.marks ?? ''}
-                                                onChange={(e) => handleMarksChange(idx, 'marks', e.target.value)}
-                                                placeholder="—"
-                                                min="0"
-                                                max={assessment.maxMarks ?? undefined}
-                                                style={{ width: '70px', padding: '6px 8px', fontSize: '13px' }}
-                                                disabled={!student.submission?.id}
-                                            />
-                                            {assessment.maxMarks != null && <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '4px' }}>/ {assessment.maxMarks}</span>}
-                                        </td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            <input
-                                                type="text"
-                                                value={student.submission?.feedback ?? ''}
-                                                onChange={(e) => handleMarksChange(idx, 'feedback', e.target.value)}
-                                                placeholder="Feedback"
-                                                style={{ width: '120px', padding: '6px 8px', fontSize: '13px' }}
-                                                disabled={!student.submission?.id}
-                                            />
-                                        </td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            <button
-                                                className="btn-secondary"
-                                                onClick={() => saveSingleMark(student)}
-                                                disabled={!student.submission?.id}
-                                                style={{ padding: '6px 12px', fontSize: '12px', opacity: student.submission?.id ? 1 : 0.4 }}
-                                            >
-                                                💾
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
+                                {students
+                                    .map((student, idx) => ({ ...student, _origIdx: idx }))
+                                    .filter(s => {
+                                        if (!tableSearch.trim()) return true;
+                                        const q = tableSearch.toLowerCase();
+                                        return s.name?.toLowerCase().includes(q) || s.rollNumber?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q);
+                                    })
+                                    .sort((a, b) => {
+                                        if (sortBy === 'rollNumber') return (a.rollNumber || '').localeCompare(b.rollNumber || '', undefined, { numeric: true });
+                                        if (sortBy === 'year') return (a.year || '').localeCompare(b.year || '', undefined, { numeric: true }) || (a.rollNumber || '').localeCompare(b.rollNumber || '', undefined, { numeric: true });
+                                        if (sortBy === 'name') return (a.name || '').localeCompare(b.name || '');
+                                        if (sortBy === 'status') { const order = { 'Submitted': 0, 'Late': 1, 'Not Submitted': 2 }; return (order[a.submissionStatus] ?? 3) - (order[b.submissionStatus] ?? 3); }
+                                        return 0;
+                                    })
+                                    .map((student) => (
+                                        <tr key={student.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                            <td style={{ padding: '12px 16px', fontWeight: 600 }}>{student.rollNumber}</td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                <a
+                                                    onClick={() => navigate(`/admin/assessments/${id}/student/${student.id}`)}
+                                                    style={{ color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: 500, textDecoration: 'none' }}
+                                                    title="View student details &amp; history"
+                                                >
+                                                    {student.name} →
+                                                </a>
+                                            </td>
+                                            <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{student.specialization}</td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                <span className={`badge badge-${student.submissionStatus === 'Submitted' ? 'submitted' : student.submissionStatus === 'Late' ? 'late' : 'not-submitted'}`}>
+                                                    {student.submissionStatus}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                {student.submission?.files?.map((f, i) => (
+                                                    <a key={i} href={f.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>📄 {f.name}</a>
+                                                )) || '—'}
+                                            </td>
+                                            <td style={{ padding: '12px 16px', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {student.submission?.textAnswer || '—'}
+                                            </td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                {student.submission?.urls?.map((u, i) => (
+                                                    <a key={i} href={u} target="_blank" rel="noopener noreferrer" style={{ display: 'block', fontSize: '12px', marginBottom: '2px' }}>🔗 Link {i + 1}</a>
+                                                )) || '—'}
+                                            </td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                <input
+                                                    type="number"
+                                                    value={student.submission?.marks ?? ''}
+                                                    onChange={(e) => handleMarksChange(student._origIdx, 'marks', e.target.value)}
+                                                    placeholder="—"
+                                                    min="0"
+                                                    max={assessment.maxMarks ?? undefined}
+                                                    style={{ width: '70px', padding: '6px 8px', fontSize: '13px' }}
+                                                    disabled={!student.submission?.id}
+                                                />
+                                                {assessment.maxMarks != null && <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginLeft: '4px' }}>/ {assessment.maxMarks}</span>}
+                                            </td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                <input
+                                                    type="text"
+                                                    value={student.submission?.feedback ?? ''}
+                                                    onChange={(e) => handleMarksChange(student._origIdx, 'feedback', e.target.value)}
+                                                    placeholder="Feedback"
+                                                    style={{ width: '120px', padding: '6px 8px', fontSize: '13px' }}
+                                                    disabled={!student.submission?.id}
+                                                />
+                                            </td>
+                                            <td style={{ padding: '12px 16px' }}>
+                                                <button
+                                                    className="btn-secondary"
+                                                    onClick={() => saveSingleMark(student)}
+                                                    disabled={!student.submission?.id}
+                                                    style={{ padding: '6px 12px', fontSize: '12px', opacity: student.submission?.id ? 1 : 0.4 }}
+                                                >
+                                                    💾
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
                             </tbody>
                         </table>
                     </div>
@@ -304,6 +396,97 @@ export default function AssessmentDetail() {
                     )}
                 </div>
             </div>
+
+            {/* Delete Confirmation Modal */}
+            {showDeleteConfirm && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+                }} onClick={() => setShowDeleteConfirm(false)}>
+                    <motion.div
+                        className="card"
+                        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        style={{ maxWidth: '420px', width: '90%', textAlign: 'center' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div style={{ fontSize: '48px', marginBottom: '12px' }}>⚠️</div>
+                        <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>Delete Assessment?</h3>
+                        <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                            This will permanently delete <strong>{assessment.title}</strong> and cannot be undone. Existing submissions will be orphaned.
+                        </p>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                            <motion.button className="btn-secondary" onClick={() => setShowDeleteConfirm(false)} whileHover={{ scale: 1.03 }}>
+                                Cancel
+                            </motion.button>
+                            <motion.button
+                                className="btn-primary"
+                                onClick={deleteAssessment}
+                                disabled={saving}
+                                whileHover={{ scale: 1.03 }}
+                                style={{ background: 'var(--error)' }}
+                            >
+                                {saving ? 'Deleting...' : '🗑️ Yes, Delete'}
+                            </motion.button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Copy to Programs Modal */}
+            {showCopyModal && (
+                <div style={{
+                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+                }} onClick={() => setShowCopyModal(false)}>
+                    <motion.div
+                        className="card"
+                        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        style={{ maxWidth: '500px', width: '90%' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>📋 Copy Assessment</h3>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
+                            Copy <strong>{assessment.title}</strong> to other programs. Select the target programs:
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', marginBottom: '20px' }}>
+                            {programs.filter(p => p.id !== assessment.programId).length === 0 ? (
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No other programs available.</p>
+                            ) : (
+                                programs.filter(p => p.id !== assessment.programId).map(program => (
+                                    <label key={program.id} style={{
+                                        display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
+                                        background: selectedCopyPrograms.includes(program.id) ? 'var(--bg-secondary)' : 'transparent',
+                                        borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border)',
+                                        transition: 'background 0.15s',
+                                    }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedCopyPrograms.includes(program.id)}
+                                            onChange={() => toggleCopyProgram(program.id)}
+                                            style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)' }}
+                                        />
+                                        <span style={{ fontSize: '14px', fontWeight: 500 }}>{program.name}</span>
+                                    </label>
+                                ))
+                            )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                            <motion.button className="btn-secondary" onClick={() => { setShowCopyModal(false); setSelectedCopyPrograms([]); }} whileHover={{ scale: 1.03 }}>
+                                Cancel
+                            </motion.button>
+                            <motion.button
+                                className="btn-primary"
+                                onClick={copyToPrograms}
+                                disabled={copying || selectedCopyPrograms.length === 0}
+                                whileHover={{ scale: 1.03 }}
+                                style={{ opacity: selectedCopyPrograms.length === 0 ? 0.5 : 1 }}
+                            >
+                                {copying ? '⏳ Copying...' : `📋 Copy to ${selectedCopyPrograms.length} Program${selectedCopyPrograms.length !== 1 ? 's' : ''}`}
+                            </motion.button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </PageTransition>
     );
 }
