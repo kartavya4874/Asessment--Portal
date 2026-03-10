@@ -10,6 +10,7 @@ from app.routes.assessment_routes import router as assessment_router
 from app.routes.submission_routes import router as submission_router
 from app.routes.marks_routes import router as marks_router
 from app.routes.export_routes import router as export_router
+from app.routes.student_routes import router as student_router
 
 settings = get_settings()
 
@@ -79,6 +80,7 @@ app.include_router(assessment_router)
 app.include_router(submission_router)
 app.include_router(marks_router)
 app.include_router(export_router)
+app.include_router(student_router)
 
 
 @app.get("/", tags=["Health"])
