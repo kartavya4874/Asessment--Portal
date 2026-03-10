@@ -1,8 +1,10 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function StudentLayout() {
     const { user, logout } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -77,17 +79,40 @@ export default function StudentLayout() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '14px', fontWeight: 600 }}>{user?.name}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{user?.rollNumber}</div>
+                    <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        {/* Theme Toggle Button */}
+                        <button
+                            onClick={toggleTheme}
+                            style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '8px',
+                                background: 'var(--surface)',
+                                color: 'var(--text-primary)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '18px',
+                                border: '1px solid var(--border)',
+                                transition: 'background 0.2s',
+                            }}
+                            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                        >
+                            {theme === 'dark' ? '☀️' : '🌙'}
+                        </button>
+
+                        <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '14px', fontWeight: 600 }}>{user?.name}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{user?.rollNumber}</div>
+                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="btn-secondary"
+                            style={{ padding: '8px 16px', fontSize: '13px' }}
+                        >
+                            Logout
+                        </button>
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        className="btn-secondary"
-                        style={{ padding: '8px 16px', fontSize: '13px' }}
-                    >
-                        Logout
-                    </button>
                 </div>
             </header>
 

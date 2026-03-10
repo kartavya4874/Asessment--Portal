@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Toaster } from 'react-hot-toast';
 import { lazy, Suspense } from 'react';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // ─── Direct Imports (removed lazy for instant navigation) ────────
@@ -53,63 +54,65 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: {
-              background: '#16213e',
-              color: '#e4e6eb',
-              border: '1px solid #2d3748',
-              borderRadius: '10px',
-              fontSize: '14px',
-            },
-            success: { iconTheme: { primary: '#00b894', secondary: '#16213e' } },
-            error: { iconTheme: { primary: '#ff6b6b', secondary: '#16213e' } },
-          }}
-        />
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: 'var(--surface)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: '10px',
+                fontSize: '14px',
+              },
+              success: { iconTheme: { primary: 'var(--success)', secondary: 'var(--surface)' } },
+              error: { iconTheme: { primary: 'var(--error)', secondary: 'var(--surface)' } },
+            }}
+          />
 
-        <Suspense fallback={<PageLoader />}>
-          <AnimatePresence>
-            <Routes>
-              {/* Public */}
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/student/login" element={<StudentLogin />} />
-              <Route path="/student/register" element={<StudentRegister />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
+          <Suspense fallback={<PageLoader />}>
+            <AnimatePresence>
+              <Routes>
+                {/* Public */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route path="/student/login" element={<StudentLogin />} />
+                <Route path="/student/register" element={<StudentRegister />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
-              {/* Admin Routes */}
-              <Route path="/admin" element={
-                <ProtectedRoute role="admin"><AdminLayout /></ProtectedRoute>
-              }>
-                <Route index element={<AdminDashboard />} />
-                <Route path="programs" element={<Programs />} />
-                <Route path="students" element={<Students />} />
-                <Route path="assessments" element={<Assessments />} />
-                <Route path="assessments/new" element={<AssessmentForm />} />
-                <Route path="assessments/:id/edit" element={<AssessmentForm />} />
-                <Route path="assessments/:id" element={<AssessmentDetail />} />
-                <Route path="assessments/:id/student/:studentId" element={<StudentDetail />} />
-                <Route path="students/:id" element={<AdminStudentDashboard />} />
-                <Route path="export" element={<ExportAll />} />
-              </Route>
+                {/* Admin Routes */}
+                <Route path="/admin" element={
+                  <ProtectedRoute role="admin"><AdminLayout /></ProtectedRoute>
+                }>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="programs" element={<Programs />} />
+                  <Route path="students" element={<Students />} />
+                  <Route path="assessments" element={<Assessments />} />
+                  <Route path="assessments/new" element={<AssessmentForm />} />
+                  <Route path="assessments/:id/edit" element={<AssessmentForm />} />
+                  <Route path="assessments/:id" element={<AssessmentDetail />} />
+                  <Route path="assessments/:id/student/:studentId" element={<StudentDetail />} />
+                  <Route path="students/:id" element={<AdminStudentDashboard />} />
+                  <Route path="export" element={<ExportAll />} />
+                </Route>
 
-              {/* Student Routes */}
-              <Route path="/student" element={
-                <ProtectedRoute role="student"><StudentLayout /></ProtectedRoute>
-              }>
-                <Route index element={<StudentDashboard />} />
-                <Route path="assessment/:id" element={<AssessmentView />} />
-                <Route path="results" element={<MyResults />} />
-              </Route>
-            </Routes>
-          </AnimatePresence>
-        </Suspense>
-      </Router>
-    </AuthProvider>
+                {/* Student Routes */}
+                <Route path="/student" element={
+                  <ProtectedRoute role="student"><StudentLayout /></ProtectedRoute>
+                }>
+                  <Route index element={<StudentDashboard />} />
+                  <Route path="assessment/:id" element={<AssessmentView />} />
+                  <Route path="results" element={<MyResults />} />
+                </Route>
+              </Routes>
+            </AnimatePresence>
+          </Suspense>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

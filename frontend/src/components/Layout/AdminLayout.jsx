@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 const navItems = [
     { path: '/admin', label: 'Dashboard', icon: '📊', exact: true },
@@ -14,6 +15,7 @@ const navItems = [
 export default function AdminLayout() {
     const [collapsed, setCollapsed] = useState(false);
     const { user, logout } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -135,6 +137,28 @@ export default function AdminLayout() {
                         }}
                     >
                         {collapsed ? '→' : '← Collapse'}
+                    </button>
+                    {/* Theme Toggle Button */}
+                    <button
+                        onClick={toggleTheme}
+                        style={{
+                            width: '100%',
+                            padding: '10px',
+                            borderRadius: '8px',
+                            background: 'var(--surface)',
+                            color: 'var(--text-primary)',
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            border: '1px solid var(--border)',
+                            marginBottom: '16px',
+                            transition: 'background 0.2s',
+                        }}
+                    >
+                        {theme === 'dark' ? '☀️' : '🌙'}
+                        {!collapsed && (theme === 'dark' ? ' Light Mode' : ' Dark Mode')}
                     </button>
                     <div style={{
                         display: 'flex',
