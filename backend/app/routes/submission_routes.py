@@ -200,3 +200,28 @@ async def get_students_for_assessment(
         students.append(student_data)
 
     return students
+
+
+@router.get("/student/{student_id}/history", response_model=list)
+async def get_student_submission_history(
+    student_id: str,
+    admin: dict = Depends(require_admin),
+):
+    """Get all submissions for a student across all assessments, with assessment info."""
+    # Verify student exists
+    student = await students_collection.find_one({"_id": ObjectId(student_id)})
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    submissions = []
+    async for doc in submissions_collection.find({"studentId": student_id}).sort("submittedAt", -1):
+        assessment = await assessments_collection.find_one(
+            {"_id": ObjectId(doc["assessmentId"])}
+        )
+        resp = await submission_doc_to_response(doc)
+        resp["assessmentTitle"] = assessment.get("title", "Unknown") if assessment else "Unknown"
+        resp["assessmentDeadline"] = assessment.get("deadline") if assessment else None
+        resp["maxMarks"] = assessment.get("maxMarks") if assessment else None
+        submissions.append(resp)
+
+    return submissions

@@ -212,3 +212,52 @@ async def unlock_assessment(assessment_id: str, admin: dict = Depends(require_ad
         raise HTTPException(status_code=404, detail="Assessment not found")
     updated = await assessments_collection.find_one({"_id": ObjectId(assessment_id)})
     return await assessment_doc_to_response(updated)
+
+
+from pydantic import BaseModel
+
+
+class CopyAssessmentRequest(BaseModel):
+    targetProgramIds: list[str]
+
+
+@router.post("/{assessment_id}/copy", response_model=list)
+async def copy_assessment_to_programs(
+    assessment_id: str,
+    data: CopyAssessmentRequest,
+    admin: dict = Depends(require_admin),
+):
+    """Copy an assessment to one or more target programs."""
+    source = await assessments_collection.find_one({"_id": ObjectId(assessment_id)})
+    if not source:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    if not data.targetProgramIds:
+        raise HTTPException(status_code=400, detail="No target programs specified")
+
+    # Validate all target programs exist
+    for pid in data.targetProgramIds:
+        program = await programs_collection.find_one({"_id": ObjectId(pid)})
+        if not program:
+            raise HTTPException(status_code=400, detail=f"Program {pid} not found")
+
+    created = []
+    for pid in data.targetProgramIds:
+        new_doc = {
+            "programId": pid,
+            "title": source["title"],
+            "description": source.get("description", ""),
+            "attachedFiles": source.get("attachedFiles", []),
+            "startAt": source["startAt"],
+            "deadline": source["deadline"],
+            "maxMarks": source.get("maxMarks"),
+            "isLocked": False,
+            "createdBy": admin["id"],
+            "createdAt": datetime.now(timezone.utc),
+        }
+        result = await assessments_collection.insert_one(new_doc)
+        new_doc["_id"] = result.inserted_id
+        created.append(await assessment_doc_to_response(new_doc))
+
+    return created
+

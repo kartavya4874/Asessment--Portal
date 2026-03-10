@@ -13,6 +13,14 @@ THIN_BORDER = Border(
     top=Side(style="thin"),
     bottom=Side(style="thin"),
 )
+import re
+
+def _year_sort_key(student_data: dict) -> tuple:
+    """Natural sort key for year/semester fields like '1st Year', 'Sem 2', '3rd Semester', etc."""
+    year = str(student_data.get("year", "")).strip()
+    # Extract the first number from the string for natural ordering
+    match = re.search(r'(\d+)', year)
+    return (int(match.group(1)) if match else 999, year.lower())
 
 COLUMNS = [
     ("Roll No", 15),
@@ -86,8 +94,9 @@ def generate_assessment_excel(
     # Header on row 3
     _style_header_at_row(ws, 3)
 
-    # Data rows
-    for idx, student in enumerate(students_data):
+    # Data rows (sorted by year/semester)
+    sorted_students = sorted(students_data, key=_year_sort_key)
+    for idx, student in enumerate(sorted_students):
         _add_student_row(ws, idx + 4, student)
 
     output = BytesIO()
@@ -134,7 +143,8 @@ def generate_combined_excel(
             title_cell.font = Font(name="Calibri", bold=True, size=12, color="6C5CE7")
             row_idx += 1
 
-            for student in assessment_group.get("students", []):
+            sorted_students = sorted(assessment_group.get("students", []), key=_year_sort_key)
+            for student in sorted_students:
                 _add_student_row(ws, row_idx, student)
                 row_idx += 1
 
