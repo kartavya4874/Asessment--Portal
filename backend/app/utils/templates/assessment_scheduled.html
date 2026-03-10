@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4ea8de, #00b894);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        p {
+            line-height: 1.6;
+            color: #4a5568;
+        }
+
+        .footer {
+            background: #f1f3f5;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border: 1px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>New Assessment Scheduled 📅</h1>
+        </div>
+        <div class="content">
+            <p>Hi <strong>{{ student_name }}</strong>,</p>
+            <p>A new assessment has been scheduled for your program and requires your attention!</p>
+            <div class="card">
+                <h3>{{ assessment_title }}</h3>
+                <p><strong>Date:</strong> {{ date }}</p>
+                <p><strong>Time:</strong> {{ start_time }} - {{ end_time }}</p>
+                <p><strong>Duration:</strong> {{ duration }} Mins</p>
+                <p><strong>Total Marks:</strong> {{ total_marks }}</p>
+            </div>
+            <p>Please ensure you report on time and ensure your setup is ready before the assessment begins.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; AI Training Lab, Geeta University. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>

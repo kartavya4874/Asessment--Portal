@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.config import get_settings
 from app.database import connect_db, close_db, setup_indexes
 from app.seed_admins import seed_admins
@@ -17,12 +18,23 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    scheduler = None  # Declare early so shutdown block can access it safely
     # Startup
     try:
         print("🚀 Starting up AI Lab Assessment Portal...")
         await connect_db()
         await setup_indexes()
         await seed_admins()
+        
+        # Start APScheduler Jobs
+        scheduler = AsyncIOScheduler()
+        from app.utils.reminder_job import send_closing_reminders
+        from app.utils.email_service import flush_email_queue
+        scheduler.add_job(send_closing_reminders, 'interval', minutes=60)
+        scheduler.add_job(flush_email_queue, 'interval', minutes=60)  # Flush pending email queue
+        scheduler.start()
+        print("⏰ APScheduler started for background jobs.")
+        
         print("✨ Startup complete! Ready to serve requests.")
     except Exception as e:
         import traceback
@@ -35,6 +47,11 @@ async def lifespan(app: FastAPI):
             os._exit(1)
     yield
     # Shutdown
+    try:
+        if scheduler and scheduler.running:
+            scheduler.shutdown(wait=False)
+    except Exception:
+        pass
     try:
         await close_db()
     except Exception:

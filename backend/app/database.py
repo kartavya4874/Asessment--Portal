@@ -18,6 +18,7 @@ programs_collection = db["programs"]
 assessments_collection = db["assessments"]
 submissions_collection = db["submissions"]
 password_resets_collection = db["password_resets"]
+email_queue_collection = db["email_queue"]  # For rate-limited email delivery
 
 
 async def connect_db():

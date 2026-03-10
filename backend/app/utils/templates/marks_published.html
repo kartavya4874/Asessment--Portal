@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0984e3, #74b9ff);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        p {
+            line-height: 1.6;
+            color: #4a5568;
+        }
+
+        .footer {
+            background: #f1f3f5;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #0984e3;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .marks {
+            font-size: 32px;
+            font-weight: bold;
+            color: #0984e3;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Results Published! 🏆</h1>
+        </div>
+        <div class="content">
+            <p>Hi <strong>{{ student_name }}</strong>,</p>
+            <p>The results for the assessment <strong>{{ assessment_title }}</strong> have been published.</p>
+            <div class="marks">
+                {{ obtained_marks }} / {{ total_marks }}
+            </div>
+            <p>You can view your detailed feedback and question breakdown by logging into the portal.</p>
+            <center><a href="{{ results_url }}" class="btn">View Detailed Results</a></center>
+        </div>
+        <div class="footer">
+            <p>&copy; AI Training Lab, Geeta University. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>

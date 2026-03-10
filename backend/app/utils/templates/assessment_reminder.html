@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #e17055, #fab1a0);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        p {
+            line-height: 1.6;
+            color: #4a5568;
+        }
+
+        .footer {
+            background: #f1f3f5;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #e17055;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Action Required: Assessment Closing Soon! ⏰</h1>
+        </div>
+        <div class="content">
+            <p>Hi <strong>{{ student_name }}</strong>,</p>
+            <p>This is a polite reminder that an assessment you are enrolled in is closing in <strong>less than 24
+                    hours</strong>.</p>
+            <p><strong>Assessment:</strong> {{ assessment_title }}</p>
+            <p><strong>Closes On:</strong> {{ end_time }}</p>
+            <p>If you have not already submitted your answers, please ensure you do so before the deadline to avoid
+                receiving a zero.</p>
+            <center><a href="{{ portal_url }}" class="btn">Go to Portal</a></center>
+        </div>
+        <div class="footer">
+            <p>&copy; AI Training Lab, Geeta University. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>

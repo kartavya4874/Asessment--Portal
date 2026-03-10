@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #00b894, #55efc4);
+            padding: 30px;
+            text-align: center;
+            color: white;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        p {
+            line-height: 1.6;
+            color: #4a5568;
+        }
+
+        .footer {
+            background: #f1f3f5;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #00b894;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Assessment is Now Open! 🟢</h1>
+        </div>
+        <div class="content">
+            <p>Hi <strong>{{ student_name }}</strong>,</p>
+            <p>The assessment <strong>{{ assessment_title }}</strong> is now officially open and accepting submissions.
+            </p>
+            <p><strong>Closes On:</strong> {{ end_time }}</p>
+            <center><a href="{{ portal_url }}" class="btn">Start Assessment</a></center>
+            <p style="margin-top: 20px; font-size: 14px; color: #718096;">Ensure you have a stable internet connection
+                before beginning.</p>
+        </div>
+        <div class="footer">
+            <p>&copy; AI Training Lab, Geeta University. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+
+</html>

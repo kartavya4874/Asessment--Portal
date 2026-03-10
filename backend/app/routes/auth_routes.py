@@ -7,6 +7,8 @@ from app.auth import hash_password, verify_password, create_access_token
 from app.models.admin import AdminLogin, AdminResponse
 from app.models.student import StudentRegister, StudentLogin, StudentResponse, ForgotPasswordRequest, ResetPasswordRequest
 from app.config import get_settings
+from app.utils.email_service import email_service
+import asyncio
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 settings = get_settings()
@@ -93,6 +95,24 @@ async def student_register(data: StudentRegister):
         "createdAt": datetime.now(timezone.utc),
     }
     result = await students_collection.insert_one(student_doc)
+    
+    # 📧 Send Welcome Email (Fire and forget so we don't block the response)
+    if settings.EMAIL_ENABLED:
+        login_url = f"{settings.FRONTEND_URL.split(',')[0]}/student/login"
+        asyncio.create_task(
+            email_service.send_email(
+                recipient=data.email,
+                template_name="welcome.html",
+                context={
+                    "student_name": data.name,
+                    "roll_number": data.rollNumber,
+                    "email": data.email,
+                    "login_url": login_url
+                },
+                subject="Welcome to AI Lab Assessment Portal!"
+            )
+        )
+
     token = create_access_token({"sub": str(result.inserted_id), "role": "student"})
     return {
         "token": token,

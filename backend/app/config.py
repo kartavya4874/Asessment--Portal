@@ -15,9 +15,19 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:5173,https://assessments.kartavyabaluja.in"
     CLOUDFLARE_EMAIL_WORKER_URL: str = ""
     RESEND_API_KEY: str = ""
+    
+    # Email / SMTP Configuration (Brevo)
+    # ⚠️ DO NOT set defaults here. All values must come from the .env file.
+    SMTP_SERVER: str = "smtp-relay.brevo.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SENDER_EMAIL: str = ""
+    EMAIL_ENABLED: bool = True
 
     # Format: "name|email|password,name|email|password,..."
-    ADMIN_CREDENTIALS: str = "Lab Admin|admin@geetauniversity.edu.in|admin123"
+    # ⚠️ DO NOT set defaults here. All values must come from the .env file.
+    ADMIN_CREDENTIALS: str = ""
 
     def get_admin_list(self) -> List[Tuple[str, str, str]]:
         """Parse ADMIN_CREDENTIALS into a list of (name, email, password) tuples."""

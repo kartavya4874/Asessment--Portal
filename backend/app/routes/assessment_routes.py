@@ -3,10 +3,14 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
-from app.database import assessments_collection, programs_collection
+from app.database import assessments_collection, programs_collection, students_collection
 from app.auth import require_admin, get_current_user
 from app.models.assessment import AssessmentCreate, AssessmentUpdate, AssessmentResponse
 from app.firebase_storage import upload_file_to_firebase, generate_unique_filename, generate_signed_url
+from app.utils.email_service import email_service
+from app.config import get_settings
+
+settings = get_settings()
 
 router = APIRouter(prefix="/assessments", tags=["Assessments"])
 
@@ -119,6 +123,56 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
     }
     result = await assessments_collection.insert_one(assessment_doc)
     assessment_doc["_id"] = result.inserted_id
+    
+    # 📧 Send "Scheduled" and potentially "Open" Emails to enrolled students
+    if settings.EMAIL_ENABLED:
+        students = await students_collection.find({"programId": data.programId}).to_list(length=None)
+        
+        # Calculate derived fields for emails
+        date_str = data.startAt.strftime("%B %d, %Y")
+        start_str = data.startAt.strftime("%I:%M %p")
+        end_str = data.deadline.strftime("%I:%M %p")
+        duration_mins = int((data.deadline - data.startAt).total_seconds() / 60)
+        portal_url = f"{settings.FRONTEND_URL.split(',')[0]}/student/assessment/{result.inserted_id}"
+        
+        now = datetime.now(timezone.utc)
+        is_open_now = now >= data.startAt
+        
+        for student in students:
+            # 1. Always send Scheduled Email
+            asyncio.create_task(
+                email_service.send_email(
+                    recipient=student["email"],
+                    template_name="assessment_scheduled.html",
+                    context={
+                        "student_name": student.get("name", "Student"),
+                        "assessment_title": data.title,
+                        "date": date_str,
+                        "start_time": start_str,
+                        "end_time": end_str,
+                        "duration": duration_mins,
+                        "total_marks": data.maxMarks
+                    },
+                    subject=f"New Assessment Scheduled: {data.title}"
+                )
+            )
+            
+            # 2. If it is already open at the time of creation, send Opens Email immediately
+            if is_open_now:
+                asyncio.create_task(
+                    email_service.send_email(
+                        recipient=student["email"],
+                        template_name="assessment_opens.html",
+                        context={
+                            "student_name": student.get("name", "Student"),
+                            "assessment_title": data.title,
+                            "end_time": end_str,
+                            "portal_url": portal_url
+                        },
+                        subject=f"Assessment Now Open: {data.title}"
+                    )
+                )
+
     print(f"DEBUG: create_assessment success - ID: {result.inserted_id}")
     return await assessment_doc_to_response(assessment_doc)
 

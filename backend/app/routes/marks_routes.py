@@ -1,8 +1,13 @@
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Depends, status
-from app.database import submissions_collection, assessments_collection
+import asyncio
+from app.database import submissions_collection, assessments_collection, students_collection
 from app.auth import require_admin
 from app.models.submission import MarksUpdate, BulkMarksUpdate
+from app.utils.email_service import email_service
+from app.config import get_settings
+
+settings = get_settings()
 
 router = APIRouter(prefix="/marks", tags=["Marks & Feedback"])
 
@@ -59,6 +64,31 @@ async def publish_marks(
         {"assessmentId": assessment_id},
         {"$set": {"marksPublished": True}},
     )
+    
+    # 📧 Send "Marks Published" Email to all students who have a submission
+    if settings.EMAIL_ENABLED:
+        assessment = await assessments_collection.find_one({"_id": ObjectId(assessment_id)})
+        if assessment:
+            submissions = await submissions_collection.find({"assessmentId": assessment_id}).to_list(length=None)
+            for sub in submissions:
+                student = await students_collection.find_one({"_id": ObjectId(sub["studentId"])})
+                if student:
+                    results_url = f"{settings.FRONTEND_URL.split(',')[0]}/student/results"
+                    asyncio.create_task(
+                        email_service.send_email(
+                            recipient=student["email"],
+                            template_name="marks_published.html",
+                            context={
+                                "student_name": student.get("name", "Student"),
+                                "assessment_title": assessment.get("title", "Assessment"),
+                                "obtained_marks": sub.get("marks", 0),
+                                "total_marks": assessment.get("maxMarks", 0),
+                                "results_url": results_url
+                            },
+                            subject=f"Results Published: {assessment.get('title')}"
+                        )
+                    )
+
     return {
         "message": f"Published marks for {result.modified_count} submissions"
     }

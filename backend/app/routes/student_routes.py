@@ -5,6 +5,11 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query
 from app.database import students_collection, programs_collection, submissions_collection
 from app.auth import require_admin, hash_password
 from pydantic import BaseModel, EmailStr
+from app.utils.email_service import email_service
+from app.config import get_settings
+import asyncio
+
+settings = get_settings()
 
 router = APIRouter(prefix="/students", tags=["Student Management"])
 
@@ -101,6 +106,24 @@ async def create_student(data: AdminStudentCreate, admin: dict = Depends(require
     }
     result = await students_collection.insert_one(student_doc)
     student_doc["_id"] = result.inserted_id
+    
+    # 📧 Send Welcome Email (Fire and forget so we don't block the response)
+    if settings.EMAIL_ENABLED:
+        login_url = f"{settings.FRONTEND_URL.split(',')[0]}/student/login"
+        asyncio.create_task(
+            email_service.send_email(
+                recipient=data.email,
+                template_name="welcome.html",
+                context={
+                    "student_name": data.name,
+                    "roll_number": data.rollNumber,
+                    "email": data.email,
+                    "login_url": login_url
+                },
+                subject="Welcome to AI Lab Assessment Portal!"
+            )
+        )
+        
     return student_doc_to_response(student_doc)
 
 
@@ -139,6 +162,22 @@ async def update_student(
         {"_id": ObjectId(student_id)}, {"$set": update_data}
     )
     updated = await students_collection.find_one({"_id": ObjectId(student_id)})
+    
+    # 📧 Send Profile Update Email
+    if settings.EMAIL_ENABLED:
+        updated_fields = list(update_data.keys())
+        asyncio.create_task(
+            email_service.send_email(
+                recipient=updated["email"],
+                template_name="profile_update.html",
+                context={
+                    "student_name": updated.get("name", "Student"),
+                    "updated_fields": updated_fields
+                },
+                subject="Notice: Your Profile Data was Updated"
+            )
+        )
+
     return student_doc_to_response(updated)
 
 
