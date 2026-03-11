@@ -16,12 +16,9 @@ class Settings(BaseSettings):
     CLOUDFLARE_EMAIL_WORKER_URL: str = ""
     RESEND_API_KEY: str = ""
     
-    # Email / SMTP Configuration (Brevo)
-    # ⚠️ DO NOT set defaults here. All values must come from the .env file.
-    SMTP_SERVER: str = "smtp-relay.brevo.com"
-    SMTP_PORT: int = 587
-    SMTP_USERNAME: str = ""
-    SMTP_PASSWORD: str = ""
+    # Email Configuration (Brevo HTTP API — avoids SMTP port 587 blocked by Render)
+    # Get your API key from: https://app.brevo.com/settings/keys/api
+    BREVO_API_KEY: str = ""
     SENDER_EMAIL: str = ""
     EMAIL_ENABLED: bool = True
 

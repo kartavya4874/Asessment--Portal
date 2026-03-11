@@ -1,9 +1,6 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import httpx
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 import os
-import asyncio
 from datetime import datetime, timezone
 from app.config import get_settings
 
@@ -20,40 +17,51 @@ env = Environment(
 # Brevo free tier allows 300 emails/day. We use 280 to leave a safety buffer.
 DAILY_EMAIL_LIMIT = 280
 
+# Brevo Transactional Email API endpoint
+BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+
 
 class EmailService:
     def __init__(self):
-        self.server = settings.SMTP_SERVER
-        self.port = settings.SMTP_PORT
-        self.username = settings.SMTP_USERNAME
-        self.password = settings.SMTP_PASSWORD
+        self.api_key = settings.BREVO_API_KEY
         self.sender = settings.SENDER_EMAIL
         self.enabled = settings.EMAIL_ENABLED
 
     async def _send_smtp_now(self, recipient: str, subject: str, html_content: str) -> bool:
-        """Send an email directly via SMTP. Returns True on success."""
+        """Send an email via Brevo HTTP API (HTTPS/443). Returns True on success.
+        
+        NOTE: We use the Brevo REST API instead of SMTP because Render.com blocks
+        outbound port 587. HTTPS (port 443) is always open.
+        """
         if not self.enabled:
             print(f"📧 [Email Disabled] Would have sent to {recipient}: {subject}")
             return False
 
-        message = MIMEMultipart("alternative")
-        message["Subject"] = subject
-        message["From"] = f"AI Lab Portal <{self.sender}>"
-        message["To"] = recipient
-        message.attach(MIMEText(html_content, "html"))
+        if not self.api_key:
+            print(f"❌ BREVO_API_KEY is not set. Cannot send email to {recipient}.")
+            return False
+
+        payload = {
+            "sender": {"name": "AI Lab Portal", "email": self.sender},
+            "to": [{"email": recipient}],
+            "subject": subject,
+            "htmlContent": html_content,
+        }
+        headers = {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "api-key": self.api_key,
+        }
 
         try:
-            loop = asyncio.get_running_loop()
-
-            def sync_send():
-                with smtplib.SMTP(self.server, self.port) as s:
-                    s.starttls()
-                    s.login(self.username, self.password)
-                    s.sendmail(self.sender, recipient, message.as_string())
-
-            await loop.run_in_executor(None, sync_send)
-            print(f"✅ Email sent to {recipient}: {subject}")
-            return True
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(BREVO_API_URL, json=payload, headers=headers)
+            if response.status_code in (200, 201):
+                print(f"✅ Email sent to {recipient}: {subject}")
+                return True
+            else:
+                print(f"❌ Failed to send email to {recipient}: HTTP {response.status_code} – {response.text}")
+                return False
         except Exception as e:
             print(f"❌ Failed to send email to {recipient}: {e}")
             return False
