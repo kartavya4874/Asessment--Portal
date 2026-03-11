@@ -109,7 +109,7 @@ async def create_student(data: AdminStudentCreate, admin: dict = Depends(require
     
     # 📧 Send Welcome Email (Fire and forget so we don't block the response)
     if settings.EMAIL_ENABLED:
-        login_url = f"{settings.FRONTEND_URL.split(',')[0]}/student/login"
+        login_url = f"{settings.PORTAL_URL}/student/login"
         asyncio.create_task(
             email_service.send_email(
                 recipient=data.email,

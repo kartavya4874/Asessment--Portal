@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     FIREBASE_STORAGE_BUCKET: str = ""
     DEV_MODE: bool = True
     FRONTEND_URL: str = "http://localhost:5173,https://assessments.kartavyabaluja.in"
+    # URL used in email links — always points to the live production domain
+    PORTAL_URL: str = "https://assessments.kartavyabaluja.in"
     CLOUDFLARE_EMAIL_WORKER_URL: str = ""
     RESEND_API_KEY: str = ""
     
