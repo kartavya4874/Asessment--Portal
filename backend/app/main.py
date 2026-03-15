@@ -28,8 +28,9 @@ async def lifespan(app: FastAPI):
         
         # Start APScheduler Jobs
         scheduler = AsyncIOScheduler()
-        from app.utils.reminder_job import send_closing_reminders
+        from app.utils.reminder_job import send_closing_reminders, send_opening_notifications
         from app.utils.email_service import flush_email_queue
+        scheduler.add_job(send_opening_notifications, 'interval', minutes=60)
         scheduler.add_job(send_closing_reminders, 'interval', minutes=60)
         scheduler.add_job(flush_email_queue, 'interval', minutes=60)  # Flush pending email queue
         scheduler.start()
@@ -66,7 +67,11 @@ app = FastAPI(
 )
 
 # CORS — allow local dev and production origins
-origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+origins = [
+    "http://localhost:5173", "http://127.0.0.1:5173",
+    "http://localhost:5174", "http://127.0.0.1:5174",
+    "http://localhost:5175", "http://127.0.0.1:5175",
+]
 if settings.FRONTEND_URL:
     # Allow comma-separated URLs
     for url in settings.FRONTEND_URL.split(","):

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import client from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import PageTransition from '../../components/ui/PageTransition';
+import AnimatedBackground from '../../components/ui/AnimatedBackground';
 
 export default function StudentRegister() {
     const [form, setForm] = useState({
@@ -56,79 +57,120 @@ export default function StudentRegister() {
         }
     };
 
+    const inputStyle = {
+        width: '100%',
+        background: 'rgba(78,168,222,0.04)',
+        border: '1px solid var(--border)',
+        borderRadius: '12px',
+        padding: '13px 16px',
+        fontSize: '14px',
+        color: 'var(--text-primary)',
+        outline: 'none',
+        transition: 'all 0.3s',
+    };
+
+    const labelStyle = {
+        display: 'block', fontSize: '13px', color: 'var(--text-secondary)',
+        marginBottom: '8px', fontWeight: 600,
+    };
+
     return (
         <PageTransition>
             <div style={{
                 minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                padding: '24px', background: 'radial-gradient(ellipse at top, #1a1a2e 0%, #0f0f1a 70%)',
+                padding: '24px', background: 'var(--bg-primary)', position: 'relative', overflow: 'hidden',
             }}>
-                <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.4 }}
-                    className="glass" style={{ width: '100%', maxWidth: '520px', borderRadius: '16px', padding: '40px' }}>
-                    <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-                        <div style={{ fontSize: '40px', marginBottom: '12px' }}>🎓</div>
-                        <h1 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '8px' }}>Student Registration</h1>
+                <AnimatedBackground variant="auth" />
+
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                    className="card-glow"
+                    style={{
+                        width: '100%', maxWidth: '520px', borderRadius: '20px', padding: 'clamp(24px, 5vw, 44px)',
+                        position: 'relative', zIndex: 1, background: 'var(--surface)',
+                    }}
+                >
+                    <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+                        <motion.div
+                            animate={{ y: [0, -6, 0] }}
+                            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                            style={{ fontSize: '44px', marginBottom: '16px', filter: 'drop-shadow(0 4px 15px var(--glow-secondary))' }}
+                        >🎓</motion.div>
+                        <h1 style={{ fontSize: '26px', fontWeight: 800, marginBottom: '8px' }}>
+                            <span className="gradient-text">Student Registration</span>
+                        </h1>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>Join your program</p>
                     </div>
 
-                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Full Name</label>
-                                <input name="name" value={form.name} onChange={handleChange} placeholder="John Doe" style={{ width: '100%' }} />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Roll Number</label>
-                                <input name="rollNumber" value={form.rollNumber} onChange={handleChange} placeholder="e.g., 2024BCS001" style={{ width: '100%' }} />
-                            </div>
+                            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.15 }}>
+                                <label style={labelStyle}>Full Name</label>
+                                <input name="name" value={form.name} onChange={handleChange} placeholder="John Doe" style={inputStyle} />
+                            </motion.div>
+                            <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.2 }}>
+                                <label style={labelStyle}>Roll Number</label>
+                                <input name="rollNumber" value={form.rollNumber} onChange={handleChange} placeholder="e.g., 2024BCS001" style={inputStyle} />
+                            </motion.div>
                         </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Email</label>
-                            <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="student@geetauniversity.edu.in" style={{ width: '100%' }} />
-                        </div>
-                        <div>
-                            <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Program</label>
-                            <select name="programId" value={form.programId} onChange={handleChange} style={{ width: '100%' }}>
+                        <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.25 }}>
+                            <label style={labelStyle}>Email</label>
+                            <input name="email" type="email" value={form.email} onChange={handleChange} placeholder="student@geetauniversity.edu.in" style={inputStyle} />
+                        </motion.div>
+                        <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
+                            <label style={labelStyle}>Program</label>
+                            <select name="programId" value={form.programId} onChange={handleChange} style={inputStyle}>
                                 <option value="">Select Program</option>
                                 {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
-                        </div>
+                        </motion.div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Specialization</label>
-                                <select name="specialization" value={form.specialization} onChange={handleChange} style={{ width: '100%' }} disabled={!selectedProgram}>
+                            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.35 }}>
+                                <label style={labelStyle}>Specialization</label>
+                                <select name="specialization" value={form.specialization} onChange={handleChange} style={inputStyle} disabled={!selectedProgram}>
                                     <option value="">Select Specialization</option>
                                     {selectedProgram?.specializations?.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Semester</label>
-                                <select name="year" value={form.year} onChange={handleChange} style={{ width: '100%' }} disabled={!selectedProgram}>
+                            </motion.div>
+                            <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
+                                <label style={labelStyle}>Semester</label>
+                                <select name="year" value={form.year} onChange={handleChange} style={inputStyle} disabled={!selectedProgram}>
                                     <option value="">Select Semester</option>
                                     {selectedProgram?.years?.map(y => <option key={y} value={y}>{y}</option>)}
                                 </select>
-                            </div>
+                            </motion.div>
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Password</label>
-                                <input name="password" type="password" value={form.password} onChange={handleChange} placeholder="Min 6 chars" style={{ width: '100%' }} />
-                            </div>
-                            <div>
-                                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Confirm Password</label>
-                                <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} placeholder="••••••••" style={{ width: '100%' }} />
-                            </div>
+                            <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.45 }}>
+                                <label style={labelStyle}>Password</label>
+                                <input name="password" type="password" value={form.password} onChange={handleChange} placeholder="Min 6 chars" style={inputStyle} />
+                            </motion.div>
+                            <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
+                                <label style={labelStyle}>Confirm Password</label>
+                                <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} placeholder="••••••••" style={inputStyle} />
+                            </motion.div>
                         </div>
-                        <motion.button type="submit" className="btn-primary" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} style={{ marginTop: '8px', opacity: loading ? 0.7 : 1 }}>
-                            {loading ? 'Creating...' : 'Create Account'}
+                        <motion.button
+                            type="submit" className="btn-primary" disabled={loading}
+                            whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                            initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                            transition={{ delay: 0.55 }}
+                            style={{ marginTop: '8px', opacity: loading ? 0.7 : 1, padding: '14px' }}
+                        >
+                            {loading ? '⏳ Creating...' : 'Create Account →'}
                         </motion.button>
                     </form>
 
-                    <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        Already registered? <Link to="/student/login" style={{ fontWeight: 600 }}>Sign In</Link>
-                    </div>
-                    <div style={{ textAlign: 'center', marginTop: '12px' }}>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+                        style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                        Already registered? <Link to="/student/login" style={{ fontWeight: 600, color: 'var(--accent-primary)' }}>Sign In</Link>
+                    </motion.div>
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.65 }}
+                        style={{ textAlign: 'center', marginTop: '12px' }}>
                         <Link to="/" style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>← Back to Home</Link>
-                    </div>
+                    </motion.div>
                 </motion.div>
             </div>
         </PageTransition>

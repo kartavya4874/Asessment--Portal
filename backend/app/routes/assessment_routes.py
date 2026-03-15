@@ -109,6 +109,9 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
         print(f"DEBUG: create_assessment failed - Invalid timeline")
         raise HTTPException(status_code=400, detail="Deadline must be after start time")
 
+    now = datetime.now(timezone.utc)
+    is_open_now = now >= data.startAt
+
     assessment_doc = {
         "programId": data.programId,
         "title": data.title,
@@ -119,7 +122,8 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
         "maxMarks": data.maxMarks,
         "isLocked": False,
         "createdBy": admin["id"],
-        "createdAt": datetime.now(timezone.utc),
+        "createdAt": now,
+        "opened_email_sent": is_open_now,
     }
     result = await assessments_collection.insert_one(assessment_doc)
     assessment_doc["_id"] = result.inserted_id
@@ -134,9 +138,6 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
         end_str = data.deadline.strftime("%I:%M %p")
         duration_mins = int((data.deadline - data.startAt).total_seconds() / 60)
         portal_url = f"{settings.FRONTEND_URL.split(',')[0]}/student/assessment/{result.inserted_id}"
-        
-        now = datetime.now(timezone.utc)
-        is_open_now = now >= data.startAt
         
         for student in students:
             # 1. Always send Scheduled Email

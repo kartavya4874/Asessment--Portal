@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
@@ -13,7 +13,15 @@ const navItems = [
 ];
 
 export default function AdminLayout() {
-    const [collapsed, setCollapsed] = useState(false);
+    const [collapsed, setCollapsed] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth < 768) setCollapsed(true);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
     const { user, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
@@ -27,10 +35,10 @@ export default function AdminLayout() {
         <div style={{ display: 'flex', minHeight: '100vh' }}>
             {/* Sidebar */}
             <motion.aside
-                animate={{ width: collapsed ? 68 : 260 }}
-                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                animate={{ width: collapsed ? 72 : 264 }}
+                transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="glass"
                 style={{
-                    background: 'var(--bg-secondary)',
                     borderRight: '1px solid var(--border)',
                     display: 'flex',
                     flexDirection: 'column',
@@ -51,28 +59,36 @@ export default function AdminLayout() {
                     gap: '12px',
                     minHeight: '72px',
                 }}>
-                    <div style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: '10px',
-                        background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '18px',
-                        flexShrink: 0,
-                    }}>
+                    <motion.div
+                        whileHover={{ scale: 1.1, rotate: 5 }}
+                        style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: '12px',
+                            background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid), var(--gradient-end))',
+                            backgroundSize: '200% 200%',
+                            animation: 'gradient-shift 4s ease infinite',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '18px',
+                            flexShrink: 0,
+                            boxShadow: '0 4px 15px var(--glow-primary)',
+                        }}
+                    >
                         🧪
-                    </div>
+                    </motion.div>
                     <AnimatePresence>
                         {!collapsed && (
                             <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
                                 transition={{ duration: 0.2 }}
                             >
-                                <div style={{ fontSize: '15px', fontWeight: 700, whiteSpace: 'nowrap' }}>AI Lab Portal</div>
+                                <div style={{ fontSize: '15px', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                                    <span className="gradient-text">AI Lab</span> Portal
+                                </div>
                                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Admin Panel</div>
                             </motion.div>
                         )}
@@ -91,14 +107,19 @@ export default function AdminLayout() {
                                 alignItems: 'center',
                                 gap: '12px',
                                 padding: collapsed ? '12px 16px' : '12px 16px',
-                                borderRadius: '10px',
+                                borderRadius: '12px',
                                 fontSize: '14px',
                                 fontWeight: isActive ? 600 : 400,
                                 color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                background: isActive ? 'rgba(108, 92, 231, 0.12)' : 'transparent',
+                                background: isActive
+                                    ? 'linear-gradient(135deg, rgba(124,108,240,0.12), rgba(78,168,222,0.08))'
+                                    : 'transparent',
                                 textDecoration: 'none',
-                                transition: 'all 0.2s',
+                                transition: 'all 0.25s',
                                 whiteSpace: 'nowrap',
+                                position: 'relative',
+                                borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent',
+                                boxShadow: isActive ? '0 2px 12px var(--glow-primary)' : 'none',
                             })}
                         >
                             <span style={{ fontSize: '18px', flexShrink: 0 }}>{item.icon}</span>
@@ -124,7 +145,7 @@ export default function AdminLayout() {
                         style={{
                             width: '100%',
                             padding: '10px',
-                            borderRadius: '8px',
+                            borderRadius: '10px',
                             background: 'var(--surface)',
                             color: 'var(--text-secondary)',
                             fontSize: '13px',
@@ -134,17 +155,18 @@ export default function AdminLayout() {
                             gap: '8px',
                             border: '1px solid var(--border)',
                             marginBottom: '8px',
+                            transition: 'all 0.2s',
                         }}
                     >
                         {collapsed ? '→' : '← Collapse'}
                     </button>
-                    {/* Theme Toggle Button */}
+                    {/* Theme Toggle */}
                     <button
                         onClick={toggleTheme}
                         style={{
                             width: '100%',
                             padding: '10px',
-                            borderRadius: '8px',
+                            borderRadius: '10px',
                             background: 'var(--surface)',
                             color: 'var(--text-primary)',
                             fontSize: '14px',
@@ -154,30 +176,34 @@ export default function AdminLayout() {
                             gap: '8px',
                             border: '1px solid var(--border)',
                             marginBottom: '16px',
-                            transition: 'background 0.2s',
+                            transition: 'all 0.2s',
                         }}
                     >
                         {theme === 'dark' ? '☀️' : '🌙'}
                         {!collapsed && (theme === 'dark' ? ' Light Mode' : ' Dark Mode')}
                     </button>
+
+                    {/* User section */}
                     <div style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '10px',
-                        padding: collapsed ? '8px 4px' : '8px 12px',
-                        borderRadius: '10px',
-                        background: 'var(--surface)',
+                        padding: collapsed ? '8px 4px' : '10px 14px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, rgba(124,108,240,0.06), rgba(78,168,222,0.04))',
+                        border: '1px solid rgba(124,108,240,0.1)',
                     }}>
                         <div style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '8px',
-                            background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+                            width: 34,
+                            height: 34,
+                            borderRadius: '10px',
+                            background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             fontSize: '14px',
                             flexShrink: 0,
+                            boxShadow: '0 2px 10px var(--glow-primary)',
                         }}>
                             👤
                         </div>
@@ -199,6 +225,7 @@ export default function AdminLayout() {
                                             color: 'var(--error)',
                                             background: 'none',
                                             padding: 0,
+                                            transition: 'opacity 0.2s',
                                         }}
                                     >
                                         Logout
@@ -213,9 +240,9 @@ export default function AdminLayout() {
             {/* Main Content */}
             <main style={{
                 flex: 1,
-                marginLeft: collapsed ? 68 : 260,
-                transition: 'margin-left 0.3s ease-in-out',
-                padding: '32px',
+                marginLeft: collapsed ? 72 : 264,
+                transition: 'margin-left 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                padding: 'clamp(16px, 3vw, 32px)',
                 maxWidth: '100%',
                 overflow: 'auto',
             }}>

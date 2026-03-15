@@ -73,15 +73,27 @@ export default function Programs() {
         } catch (err) { toast.error('Failed to delete'); }
     };
 
+    const inputStyle = {
+        width: '100%',
+        background: 'rgba(124,108,240,0.04)',
+        border: '1px solid var(--border)',
+        borderRadius: '12px',
+        padding: '13px 16px',
+        fontSize: '14px',
+        color: 'var(--text-primary)',
+        outline: 'none',
+        transition: 'all 0.3s',
+    };
+
     return (
         <PageTransition>
             <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                     <div>
-                        <h1 style={{ fontSize: '28px', fontWeight: 700 }}>Programs</h1>
+                        <h1 style={{ fontSize: '28px', fontWeight: 800 }}><span className="gradient-text">Programs</span></h1>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>Manage academic programs</p>
                     </div>
-                    <motion.button className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                    <motion.button className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
                         ➕ Add Program
                     </motion.button>
                 </div>
@@ -90,27 +102,27 @@ export default function Programs() {
                 <AnimatePresence>
                     {showForm && (
                         <motion.div
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="card"
-                            style={{ marginBottom: '24px' }}
+                            initial={{ opacity: 0, y: -20, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -20, scale: 0.97 }}
+                            className="card-glow"
+                            style={{ marginBottom: '24px', background: 'var(--surface)', borderRadius: '16px', border: '1px solid var(--border)', padding: '28px' }}
                         >
-                            <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px' }}>
-                                {editingProgram ? 'Edit Program' : 'Create Program'}
+                            <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>
+                                {editingProgram ? '✏️ Edit Program' : '➕ Create Program'}
                             </h2>
                             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Program Name</label>
-                                    <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g., B.Tech, MCA, MBA" style={{ width: '100%' }} />
+                                    <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>Program Name</label>
+                                    <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g., B.Tech, MCA, MBA" style={inputStyle} />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Years/Semesters (comma-separated)</label>
-                                    <input value={form.years} onChange={(e) => setForm({ ...form, years: e.target.value })} placeholder="e.g., 1st Year, 2nd Year, 3rd Year, 4th Year" style={{ width: '100%' }} />
+                                    <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>Years/Semesters (comma-separated)</label>
+                                    <input value={form.years} onChange={(e) => setForm({ ...form, years: e.target.value })} placeholder="e.g., 1st Year, 2nd Year, 3rd Year, 4th Year" style={inputStyle} />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Specializations (comma-separated)</label>
-                                    <input value={form.specializations} onChange={(e) => setForm({ ...form, specializations: e.target.value })} placeholder="e.g., CSE-AI, Data Science, Cybersecurity" style={{ width: '100%' }} />
+                                    <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>Specializations (comma-separated)</label>
+                                    <input value={form.specializations} onChange={(e) => setForm({ ...form, specializations: e.target.value })} placeholder="e.g., CSE-AI, Data Science, Cybersecurity" style={inputStyle} />
                                 </div>
                                 <div style={{ display: 'flex', gap: '12px' }}>
                                     <motion.button type="submit" className="btn-primary" whileHover={{ scale: 1.02 }}>
@@ -130,38 +142,58 @@ export default function Programs() {
                     </div>
                 ) : programs.length === 0 ? (
                     <div className="card" style={{ textAlign: 'center', padding: '60px' }}>
-                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎓</div>
-                        <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>No Programs Yet</h3>
+                        <div style={{ fontSize: '52px', marginBottom: '16px' }}>🎓</div>
+                        <h3 style={{ fontSize: '20px', marginBottom: '8px', fontWeight: 700 }}>No Programs Yet</h3>
                         <p style={{ color: 'var(--text-secondary)' }}>Create your first program to get started.</p>
                     </div>
                 ) : (
                     <StaggerContainer style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
                         {programs.map(program => (
                             <StaggerItem key={program.id}>
-                                <motion.div className="card" whileHover={{ y: -2 }}>
-                                    <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '12px' }}>{program.name}</h3>
+                                <motion.div className="card" whileHover={{ y: -4, scale: 1.01 }}>
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px',
+                                        paddingBottom: '14px', borderBottom: '1px solid var(--border)',
+                                    }}>
+                                        <div style={{
+                                            width: 42, height: 42, borderRadius: '12px',
+                                            background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
+                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: '20px', boxShadow: '0 4px 15px var(--glow-primary)',
+                                        }}>🎓</div>
+                                        <h3 style={{ fontSize: '18px', fontWeight: 700 }}>{program.name}</h3>
+                                    </div>
 
                                     <div style={{ marginBottom: '12px' }}>
-                                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Years</div>
+                                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Years</div>
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                             {program.years.map(y => (
-                                                <span key={y} style={{ padding: '4px 10px', background: 'var(--bg-secondary)', borderRadius: '6px', fontSize: '12px' }}>{y}</span>
+                                                <span key={y} style={{
+                                                    padding: '5px 12px', background: 'var(--bg-secondary)',
+                                                    borderRadius: '8px', fontSize: '12px', fontWeight: 500,
+                                                    border: '1px solid var(--border)',
+                                                }}>{y}</span>
                                             ))}
                                         </div>
                                     </div>
 
-                                    <div style={{ marginBottom: '16px' }}>
-                                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Specializations</div>
+                                    <div style={{ marginBottom: '18px' }}>
+                                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Specializations</div>
                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                             {program.specializations.map(s => (
-                                                <span key={s} style={{ padding: '4px 10px', background: 'rgba(108,92,231,0.1)', borderRadius: '6px', fontSize: '12px', color: 'var(--accent-primary)' }}>{s}</span>
+                                                <span key={s} style={{
+                                                    padding: '5px 12px',
+                                                    background: 'linear-gradient(135deg, rgba(124,108,240,0.1), rgba(78,168,222,0.08))',
+                                                    borderRadius: '8px', fontSize: '12px', color: 'var(--accent-primary)',
+                                                    fontWeight: 600, border: '1px solid rgba(124,108,240,0.15)',
+                                                }}>{s}</span>
                                             ))}
                                         </div>
                                     </div>
 
                                     <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button className="btn-secondary" onClick={() => handleEdit(program)} style={{ flex: 1, padding: '8px', fontSize: '13px' }}>✏️ Edit</button>
-                                        <button className="btn-danger" onClick={() => handleDelete(program.id)} style={{ padding: '8px 16px', fontSize: '13px' }}>🗑️</button>
+                                        <motion.button className="btn-secondary" onClick={() => handleEdit(program)} whileHover={{ scale: 1.03 }} style={{ flex: 1, padding: '10px', fontSize: '13px' }}>✏️ Edit</motion.button>
+                                        <motion.button className="btn-danger" onClick={() => handleDelete(program.id)} whileHover={{ scale: 1.03 }} style={{ padding: '10px 18px', fontSize: '13px' }}>🗑️</motion.button>
                                     </div>
                                 </motion.div>
                             </StaggerItem>
