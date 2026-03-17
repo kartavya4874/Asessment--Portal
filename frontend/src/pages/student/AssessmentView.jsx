@@ -78,7 +78,10 @@ export default function AssessmentView() {
                 files.forEach(f => formData.append('files', f));
             }
 
-            const { data } = await client.post('/submissions', formData);
+            // Force Axios to let the browser set the Content-Type header with the boundary
+            const { data } = await client.post('/submissions', formData, {
+                headers: { 'Content-Type': undefined }
+            });
 
             setSubmission(data);
              // Update the URLs and textAnswer states with latest data from DB to stay in sync
@@ -89,15 +92,22 @@ export default function AssessmentView() {
         } catch (err) {
             console.error("Submission error details:", err.response?.data);
             let errorMsg = 'Submission failed';
-            const detail = err.response?.data?.detail;
-            if (detail) {
-                if (Array.isArray(detail)) {
-                    errorMsg = detail[0].msg || 'Validation error';
-                } else if (typeof detail === 'string') {
-                    errorMsg = detail;
+            
+            // Check for FastAPI validation error (422)
+            if (err.response?.status === 422 && err.response?.data?.detail) {
+                const details = err.response.data.detail;
+                if (Array.isArray(details)) {
+                    // Show the specific field that failed and why
+                    const field = details[0].loc?.[details[0].loc.length - 1] || 'request';
+                    const msg = details[0].msg || 'is invalid';
+                    errorMsg = `Validation error: ${field} ${msg}`;
                 }
+            } else if (err.response?.data?.detail) {
+                const detail = err.response.data.detail;
+                errorMsg = typeof detail === 'string' ? detail : (detail[0]?.msg || 'Error occurred');
             }
-            toast.error(errorMsg);
+            
+            toast.error(errorMsg, { duration: 5000 });
         } finally {
             setSubmitting(false);
         }
