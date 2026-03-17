@@ -2,6 +2,8 @@ import re
 import secrets
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, status
+from bson import ObjectId
+from bson.errors import InvalidId
 from app.database import admins_collection, students_collection, programs_collection, password_resets_collection
 from app.auth import hash_password, verify_password, create_access_token
 from app.models.admin import AdminLogin, AdminResponse
@@ -52,15 +54,16 @@ async def admin_login(data: AdminLogin):
 @router.post("/student/register", response_model=dict)
 async def student_register(data: StudentRegister):
     # Email domain validation
+    email = data.email.lower().strip()
     if not settings.DEV_MODE:
-        if not re.match(EMAIL_REGEX, data.email):
+        if not re.match(EMAIL_REGEX, email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email must be @geetauniversity.edu.in",
             )
 
     # Check for existing email or roll number
-    existing_email = await students_collection.find_one({"email": data.email})
+    existing_email = await students_collection.find_one({"email": email})
     if existing_email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -75,9 +78,15 @@ async def student_register(data: StudentRegister):
         )
 
     # Verify program exists
-    from bson import ObjectId
+    try:
+        program_id = ObjectId(data.programId)
+    except InvalidId:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid program ID format",
+        )
 
-    program = await programs_collection.find_one({"_id": ObjectId(data.programId)})
+    program = await programs_collection.find_one({"_id": program_id})
     if not program:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -87,7 +96,7 @@ async def student_register(data: StudentRegister):
     student_doc = {
         "name": data.name,
         "rollNumber": data.rollNumber,
-        "email": data.email,
+        "email": email,
         "programId": data.programId,
         "specialization": data.specialization,
         "year": data.year,
@@ -101,12 +110,12 @@ async def student_register(data: StudentRegister):
         login_url = f"{settings.PORTAL_URL}/student/login"
         asyncio.create_task(
             email_service.send_email(
-                recipient=data.email,
+                recipient=email,
                 template_name="welcome.html",
                 context={
                     "student_name": data.name,
                     "roll_number": data.rollNumber,
-                    "email": data.email,
+                    "email": email,
                     "login_url": login_url
                 },
                 subject="Welcome to AI Lab Assessment Portal!"
@@ -119,7 +128,7 @@ async def student_register(data: StudentRegister):
         "user": {
             "id": str(result.inserted_id),
             "name": data.name,
-            "email": data.email,
+            "email": email,
             "rollNumber": data.rollNumber,
             "programId": data.programId,
             "specialization": data.specialization,
@@ -131,7 +140,8 @@ async def student_register(data: StudentRegister):
 
 @router.post("/student/login", response_model=dict)
 async def student_login(data: StudentLogin):
-    student = await students_collection.find_one({"email": data.email})
+    email = data.email.lower().strip()
+    student = await students_collection.find_one({"email": email})
     if not student or not verify_password(data.password, student["passwordHash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -161,85 +171,37 @@ async def forgot_password(data: ForgotPasswordRequest):
     Generate a 6-digit OTP and email it via Cloudflare Email Worker.
     Always returns success so we don't leak whether the email exists.
     """
-    student = await students_collection.find_one({"email": data.email})
+    email = data.email.lower().strip()
+    student = await students_collection.find_one({"email": email})
 
     if student:
         # Delete any previous OTPs for this email
-        await password_resets_collection.delete_many({"email": data.email})
+        await password_resets_collection.delete_many({"email": email})
 
         otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
         expires_at = datetime.now(timezone.utc) + timedelta(minutes=OTP_EXPIRY_MINUTES)
 
         await password_resets_collection.insert_one({
-            "email": data.email,
+            "email": email,
             "otp": otp,
             "expiresAt": expires_at,
             "createdAt": datetime.now(timezone.utc),
         })
 
-        # Send email via Resend API (direct) or Cloudflare Worker (legacy)
-        email_html = (
-            '<div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0f0f1a;color:#e4e6eb;border-radius:16px;">'
-            '<h2 style="color:#6c5ce7;margin-bottom:8px;">&#128274; Password Reset</h2>'
-            '<p style="color:#a0a0b0;">AI Lab Assessment Portal</p>'
-            '<hr style="border:1px solid #2d3748;margin:20px 0;" />'
-            "<p>You requested a password reset. Use the OTP below:</p>"
-            '<div style="background:#16213e;border:2px solid #6c5ce7;border-radius:12px;padding:24px;text-align:center;margin:24px 0;">'
-            f'<span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#6c5ce7;">{otp}</span>'
-            "</div>"
-            f'<p style="color:#a0a0b0;font-size:13px;">This code expires in <strong>{OTP_EXPIRY_MINUTES} minutes</strong>.</p>'
-            '<p style="color:#a0a0b0;font-size:13px;">If you did not request this, please ignore this email.</p>'
-            "</div>"
+        # Send email via uniform email_service
+        login_url = f"{settings.PORTAL_URL}/student/login"
+        asyncio.create_task(
+            email_service.send_email(
+                recipient=email,
+                template_name="password_reset.html",
+                context={
+                    "otp": otp,
+                    "expiry_minutes": OTP_EXPIRY_MINUTES,
+                    "login_url": login_url
+                },
+                subject="Password Reset - AI Lab Assessment Portal"
+            )
         )
-
-        email_sent = False
-
-        # Method 1: Direct Resend API (preferred)
-        if settings.RESEND_API_KEY:
-            try:
-                import httpx
-                async with httpx.AsyncClient(timeout=10.0) as http_client:
-                    resp = await http_client.post(
-                        "https://api.resend.com/emails",
-                        headers={
-                            "Authorization": f"Bearer {settings.RESEND_API_KEY}",
-                            "Content-Type": "application/json",
-                        },
-                        json={
-                            "from": "AI Lab Assessment Portal <noreply@kartavyabaluja.in>",
-                            "to": [data.email],
-                            "subject": "Password Reset - AI Lab Assessment Portal",
-                            "html": email_html,
-                        },
-                    )
-                    if resp.status_code in (200, 201):
-                        email_sent = True
-                        print(f"✅ Reset email sent to {data.email} via Resend")
-                    else:
-                        print(f"⚠️ Resend API error: {resp.status_code} {resp.text}")
-            except Exception as e:
-                print(f"⚠️ Failed to send via Resend: {e}")
-
-        # Method 2: Cloudflare Worker (fallback)
-        if not email_sent and settings.CLOUDFLARE_EMAIL_WORKER_URL:
-            try:
-                import httpx
-                async with httpx.AsyncClient(timeout=10.0) as http_client:
-                    await http_client.post(
-                        settings.CLOUDFLARE_EMAIL_WORKER_URL,
-                        json={
-                            "to": data.email,
-                            "subject": "Password Reset - AI Lab Assessment Portal",
-                            "html": email_html,
-                        },
-                    )
-                    email_sent = True
-                    print(f"✅ Reset email sent to {data.email} via Worker")
-            except Exception as e:
-                print(f"⚠️ Failed to send via Worker: {e}")
-
-        if not email_sent:
-            print(f"⚠️ No email provider configured. OTP for {data.email}: {otp}")
 
     # Always return success
     return {"message": "If that email is registered, a reset code has been sent."}
@@ -248,8 +210,9 @@ async def forgot_password(data: ForgotPasswordRequest):
 @router.post("/reset-password")
 async def reset_password(data: ResetPasswordRequest):
     """Validate OTP and update password."""
+    email = data.email.lower().strip()
     reset_record = await password_resets_collection.find_one({
-        "email": data.email,
+        "email": email,
         "otp": data.otp,
     })
 
@@ -266,7 +229,7 @@ async def reset_password(data: ResetPasswordRequest):
         expires_at = expires_at.replace(tzinfo=timezone.utc)
         
     if datetime.now(timezone.utc) > expires_at:
-        print(f"⚠️ Reset code for {data.email} has expired")
+        print(f"⚠️ Reset code for {email} has expired")
         await password_resets_collection.delete_one({"_id": reset_record["_id"]})
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -277,24 +240,24 @@ async def reset_password(data: ResetPasswordRequest):
     try:
         new_hash = hash_password(data.newPassword)
         result = await students_collection.update_one(
-            {"email": data.email},
+            {"email": email},
             {"$set": {"passwordHash": new_hash}},
         )
 
         if result.modified_count == 0:
-            print(f"⚠️ No student record updated for {data.email}")
+            print(f"⚠️ No student record updated for {email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Could not update password. Please try again.",
             )
 
         # Clean up used OTP
-        await password_resets_collection.delete_many({"email": data.email})
-        print(f"✅ Password reset successfully for {data.email}")
+        await password_resets_collection.delete_many({"email": email})
+        print(f"✅ Password reset successfully for {email}")
 
         return {"message": "Password has been reset successfully. You can now log in."}
     except Exception as e:
-        print(f"❌ Error during password update for {data.email}: {e}")
+        print(f"❌ Error during password update for {email}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update password. Please try again later.",

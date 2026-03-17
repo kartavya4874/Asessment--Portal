@@ -58,9 +58,7 @@ export default function AssessmentView() {
             formData.append('textAnswer', textAnswer);
             files.forEach(f => formData.append('files', f));
 
-            const { data } = await client.post('/submissions', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
+            const { data } = await client.post('/submissions', formData);
 
             setSubmission(data);
             toast.success(submission ? 'Submission updated!' : 'Submitted successfully!');

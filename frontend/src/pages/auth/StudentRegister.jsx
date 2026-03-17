@@ -13,6 +13,8 @@ export default function StudentRegister() {
     });
     const [programs, setPrograms] = useState([]);
     const [selectedProgram, setSelectedProgram] = useState(null);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirm, setShowConfirm] = useState(false);
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -145,11 +147,23 @@ export default function StudentRegister() {
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                             <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.45 }}>
                                 <label style={labelStyle}>Password</label>
-                                <input name="password" type="password" value={form.password} onChange={handleChange} placeholder="Min 6 chars" style={inputStyle} />
+                                <div style={{ position: 'relative' }}>
+                                    <input name="password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={handleChange} placeholder="Min 6 chars" style={inputStyle} />
+                                    <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
+                                        position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                                        background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--text-secondary)', padding: '4px',
+                                    }}>{showPassword ? '🙈' : '👁️'}</button>
+                                </div>
                             </motion.div>
                             <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.5 }}>
                                 <label style={labelStyle}>Confirm Password</label>
-                                <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} placeholder="••••••••" style={inputStyle} />
+                                <div style={{ position: 'relative' }}>
+                                    <input name="confirmPassword" type={showConfirm ? 'text' : 'password'} value={form.confirmPassword} onChange={handleChange} placeholder="••••••••" style={inputStyle} />
+                                    <button type="button" onClick={() => setShowConfirm(!showConfirm)} style={{
+                                        position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                                        background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--text-secondary)', padding: '4px',
+                                    }}>{showConfirm ? '🙈' : '👁️'}</button>
+                                </div>
                             </motion.div>
                         </div>
                         <motion.button

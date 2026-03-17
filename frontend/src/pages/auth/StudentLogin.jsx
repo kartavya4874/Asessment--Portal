@@ -10,6 +10,7 @@ import AnimatedBackground from '../../components/ui/AnimatedBackground';
 export default function StudentLogin() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -82,7 +83,13 @@ export default function StudentLogin() {
                         </motion.div>
                         <motion.div initial={{ x: -20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.3 }}>
                             <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', fontWeight: 600 }}>Password</label>
-                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} />
+                            <div style={{ position: 'relative' }}>
+                                <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
+                                    position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)',
+                                    background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--text-secondary)', padding: '4px',
+                                }}>{showPassword ? '🙈' : '👁️'}</button>
+                            </div>
                         </motion.div>
                         <div style={{ textAlign: 'right', marginTop: '-8px' }}>
                             <Link to="/forgot-password" style={{ fontSize: '12px', color: 'var(--accent-primary)', fontWeight: 600 }}>Forgot Password?</Link>
