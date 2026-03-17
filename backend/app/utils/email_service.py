@@ -21,11 +21,68 @@ DAILY_EMAIL_LIMIT = 280
 BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
 
 
+RESEND_API_URL = "https://api.resend.com/emails"
+
+
 class EmailService:
     def __init__(self):
         self.api_key = settings.BREVO_API_KEY
+        self.resend_api_key = settings.RESEND_API_KEY
         self.sender = settings.SENDER_EMAIL
         self.enabled = settings.EMAIL_ENABLED
+
+    async def send_via_resend(self, recipient: str, subject: str, html_content: str) -> bool:
+        """Send an email instantly via the Resend API.
+        
+        Used exclusively for time-sensitive emails like forgot-password OTPs
+        so they arrive immediately without any queueing or daily-limit checks.
+        """
+        if not self.enabled:
+            print(f"📧 [Email Disabled] Would have sent to {recipient}: {subject}")
+            return False
+
+        if not self.resend_api_key:
+            print(f"❌ RESEND_API_KEY is not set. Cannot send email to {recipient}.")
+            return False
+
+        payload = {
+            "from": f"AI Lab Portal <{self.sender}>",
+            "to": [recipient],
+            "subject": subject,
+            "html": html_content,
+        }
+        headers = {
+            "Authorization": f"Bearer {self.resend_api_key}",
+            "Content-Type": "application/json",
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.post(RESEND_API_URL, json=payload, headers=headers)
+            if response.status_code in (200, 201):
+                print(f"✅ [Resend] Email sent to {recipient}: {subject}")
+                return True
+            else:
+                print(f"❌ [Resend] Failed to send email to {recipient}: HTTP {response.status_code} – {response.text}")
+                return False
+        except Exception as e:
+            print(f"❌ [Resend] Failed to send email to {recipient}: {e}")
+            return False
+
+    async def send_via_resend_template(self, recipient: str, template_name: str, context: dict, subject: str) -> bool:
+        """Render a Jinja2 template and send it instantly via Resend API.
+        
+        Convenience wrapper around send_via_resend for template-based emails.
+        No queueing, no daily limit — fires immediately.
+        """
+        try:
+            template = env.get_template(template_name)
+            html_content = template.render(**context)
+        except Exception as e:
+            print(f"❌ Failed to render template {template_name}: {e}")
+            return False
+
+        return await self.send_via_resend(recipient, subject, html_content)
 
     async def _send_smtp_now(self, recipient: str, subject: str, html_content: str) -> bool:
         """Send an email via Brevo HTTP API (HTTPS/443). Returns True on success.

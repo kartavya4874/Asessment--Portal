@@ -168,7 +168,7 @@ async def student_login(data: StudentLogin):
 @router.post("/forgot-password")
 async def forgot_password(data: ForgotPasswordRequest):
     """
-    Generate a 6-digit OTP and email it via Cloudflare Email Worker.
+    Generate a 6-digit OTP and email it instantly via Resend API.
     Always returns success so we don't leak whether the email exists.
     """
     email = data.email.lower().strip()
@@ -188,19 +188,17 @@ async def forgot_password(data: ForgotPasswordRequest):
             "createdAt": datetime.now(timezone.utc),
         })
 
-        # Send email via uniform email_service
+        # Send OTP email instantly via Resend API (no queue, no daily limit)
         login_url = f"{settings.PORTAL_URL}/student/login"
-        asyncio.create_task(
-            email_service.send_email(
-                recipient=email,
-                template_name="password_reset.html",
-                context={
-                    "otp": otp,
-                    "expiry_minutes": OTP_EXPIRY_MINUTES,
-                    "login_url": login_url
-                },
-                subject="Password Reset - AI Lab Assessment Portal"
-            )
+        await email_service.send_via_resend_template(
+            recipient=email,
+            template_name="password_reset.html",
+            context={
+                "otp": otp,
+                "expiry_minutes": OTP_EXPIRY_MINUTES,
+                "login_url": login_url
+            },
+            subject="Password Reset - AI Lab Assessment Portal"
         )
 
     # Always return success
