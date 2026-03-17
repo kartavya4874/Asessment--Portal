@@ -363,6 +363,7 @@ a:hover {
     mask-composite: exclude;
     opacity: 0;
     transition: opacity 0.4s;
+    pointer-events: none;
   }
 
   .card-glow:hover::before {
