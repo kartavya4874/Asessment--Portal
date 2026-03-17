@@ -6,6 +6,7 @@ import client from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import PageTransition from '../../components/ui/PageTransition';
 import AnimatedBackground from '../../components/ui/AnimatedBackground';
+import { getErrorDetail } from '../../utils/errorHandler';
 
 export default function AdminLogin() {
     const [email, setEmail] = useState('');
@@ -27,7 +28,7 @@ export default function AdminLogin() {
             toast.success('Welcome back!');
             navigate('/admin');
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Login failed');
+            toast.error(getErrorDetail(err, 'Login failed'));
         } finally {
             setLoading(false);
         }

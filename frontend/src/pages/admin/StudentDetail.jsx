@@ -7,6 +7,7 @@ import client from '../../api/client';
 import PageTransition from '../../components/ui/PageTransition';
 import { StaggerContainer, StaggerItem } from '../../components/ui/PageTransition';
 import { SkeletonCard, SkeletonTable } from '../../components/ui/SkeletonLoader';
+import { getErrorDetail } from '../../utils/errorHandler';
 
 export default function StudentDetail() {
     const { id: assessmentId, studentId } = useParams();
@@ -70,7 +71,7 @@ export default function StudentDetail() {
             });
             toast.success('Marks saved!');
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Failed to save marks');
+            toast.error(getErrorDetail(err, 'Failed to save marks'));
         } finally {
             setSaving(false);
         }

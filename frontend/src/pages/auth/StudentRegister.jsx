@@ -6,6 +6,7 @@ import client from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import PageTransition from '../../components/ui/PageTransition';
 import AnimatedBackground from '../../components/ui/AnimatedBackground';
+import { getErrorDetail } from '../../utils/errorHandler';
 
 export default function StudentRegister() {
     const [form, setForm] = useState({
@@ -53,7 +54,7 @@ export default function StudentRegister() {
             toast.success('Registered successfully!');
             navigate('/student');
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Registration failed');
+            toast.error(getErrorDetail(err, 'Registration failed'));
         } finally {
             setLoading(false);
         }

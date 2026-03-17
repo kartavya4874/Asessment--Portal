@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import client from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import PageTransition from '../../components/ui/PageTransition';
+import { getErrorDetail } from '../../utils/errorHandler';
 
 export default function AdminRegister() {
     const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
@@ -39,7 +40,7 @@ export default function AdminRegister() {
             toast.success('Account created successfully!');
             navigate('/admin');
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Registration failed');
+            toast.error(getErrorDetail(err, 'Registration failed'));
         } finally {
             setLoading(false);
         }

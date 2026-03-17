@@ -24,20 +24,31 @@ export default function AssessmentView() {
     const [textAnswer, setTextAnswer] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
+    const [assessmentError, setAssessmentError] = useState(null);
+
     useEffect(() => {
         const fetch = async () => {
             try {
-                const [aRes, sRes] = await Promise.all([
-                    client.get(`/assessments/${id}`),
-                    client.get(`/submissions/my`, { params: { assessmentId: id } }),
-                ]);
+                // Fetch assessment first, if this fails, the page can't load
+                const aRes = await client.get(`/assessments/${id}`);
                 setAssessment(aRes.data);
-                if (sRes.data.submitted) {
-                    setSubmission(sRes.data);
-                    setUrls(sRes.data.urls?.join(', ') || '');
-                    setTextAnswer(sRes.data.textAnswer || '');
+                
+                // Fetch submission separately so it doesn't break assessment loading
+                try {
+                    const sRes = await client.get(`/submissions/my`, { params: { assessmentId: id } });
+                    if (sRes.data.submitted) {
+                        setSubmission(sRes.data);
+                        setUrls(sRes.data.urls?.join(', ') || '');
+                        setTextAnswer(sRes.data.textAnswer || '');
+                    }
+                } catch (sErr) {
+                    console.error("Failed to load submission:", sErr);
                 }
-            } catch (err) { toast.error('Failed to load assessment'); }
+            } catch (err) { 
+                console.error("Failed to load assessment:", err);
+                setAssessmentError(true);
+                toast.error('Failed to load assessment'); 
+            }
             finally { setLoading(false); }
         };
         fetch();
@@ -58,18 +69,43 @@ export default function AssessmentView() {
             formData.append('textAnswer', textAnswer);
             files.forEach(f => formData.append('files', f));
 
-            const { data } = await client.post('/submissions', formData);
+            const { data } = await client.post('/submissions', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
 
             setSubmission(data);
             toast.success(submission ? 'Submission updated!' : 'Submitted successfully!');
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Submission failed');
+            let errorMsg = 'Submission failed';
+            const detail = err.response?.data?.detail;
+            if (detail) {
+                if (Array.isArray(detail)) {
+                    errorMsg = detail[0].msg || 'Validation error';
+                } else if (typeof detail === 'string') {
+                    errorMsg = detail;
+                }
+            }
+            toast.error(errorMsg);
         } finally {
             setSubmitting(false);
         }
     };
 
     if (loading) return <PageTransition><div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}><SkeletonCard /><SkeletonCard /></div></PageTransition>;
+
+    if (assessmentError || !assessment) {
+        return (
+            <PageTransition>
+                <div style={{ maxWidth: '800px' }}>
+                    <motion.button onClick={() => navigate('/student')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>← Back to Dashboard</motion.button>
+                    <div className="card" style={{ marginTop: '20px', textAlign: 'center', padding: '40px' }}>
+                        <h2 style={{ fontSize: '20px', color: 'var(--error)' }}>Failed to load assessment</h2>
+                        <p style={{ color: 'var(--text-secondary)' }}>Please verify the assessment exists or try again later.</p>
+                    </div>
+                </div>
+            </PageTransition>
+        );
+    }
 
     const isActive = assessment.status === 'Active';
     const isClosed = assessment.status === 'Closed';

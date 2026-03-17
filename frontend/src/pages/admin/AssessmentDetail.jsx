@@ -7,6 +7,7 @@ import client from '../../api/client';
 import PageTransition from '../../components/ui/PageTransition';
 import { SkeletonTable } from '../../components/ui/SkeletonLoader';
 import formatDescription from '../../utils/formatDescription';
+import { getErrorDetail } from '../../utils/errorHandler';
 
 export default function AssessmentDetail() {
     const { id } = useParams();
@@ -62,7 +63,7 @@ export default function AssessmentDetail() {
                 feedback: student.submission.feedback || '',
             });
             toast.success(`Marks saved for ${student.name}`);
-        } catch (err) { toast.error(err.response?.data?.detail || 'Failed to save marks'); }
+        } catch (err) { toast.error(getErrorDetail(err, 'Failed to save marks')); }
     };
 
     const handleBulkSave = async () => {
@@ -116,7 +117,7 @@ export default function AssessmentDetail() {
             setAssessment(data);
             toast.success(assessment.isLocked ? 'Assessment unlocked!' : 'Assessment locked!');
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Failed to toggle lock');
+            toast.error(getErrorDetail(err, 'Failed to toggle lock'));
         } finally {
             setSaving(false);
         }
@@ -146,7 +147,7 @@ export default function AssessmentDetail() {
             toast.success('Assessment deleted!');
             navigate('/admin/assessments');
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Failed to delete');
+            toast.error(getErrorDetail(err, 'Failed to delete'));
         } finally {
             setSaving(false);
             setShowDeleteConfirm(false);
@@ -167,7 +168,7 @@ export default function AssessmentDetail() {
             setShowCopyModal(false);
             setSelectedCopyPrograms([]);
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Copy failed');
+            toast.error(getErrorDetail(err, 'Copy failed'));
         } finally {
             setCopying(false);
         }

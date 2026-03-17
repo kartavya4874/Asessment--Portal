@@ -6,6 +6,7 @@ import client from '../../api/client';
 import PageTransition from '../../components/ui/PageTransition';
 import { StaggerContainer, StaggerItem } from '../../components/ui/PageTransition';
 import { SkeletonTable } from '../../components/ui/SkeletonLoader';
+import { getErrorDetail } from '../../utils/errorHandler';
 
 export default function Students() {
     const [students, setStudents] = useState([]);
@@ -98,7 +99,7 @@ export default function Students() {
             setShowModal(false);
             fetchStudents();
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Failed to save');
+            toast.error(getErrorDetail(err, 'Failed to save'));
         } finally {
             setSaving(false);
         }
@@ -112,7 +113,7 @@ export default function Students() {
             setShowDeleteConfirm(null);
             fetchStudents();
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Failed to delete');
+            toast.error(getErrorDetail(err, 'Failed to delete'));
         } finally {
             setSaving(false);
         }

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import client from '../../api/client';
 import PageTransition from '../../components/ui/PageTransition';
 import AnimatedBackground from '../../components/ui/AnimatedBackground';
+import { getErrorDetail } from '../../utils/errorHandler';
 
 export default function ForgotPassword() {
     const [email, setEmail] = useState('');
@@ -22,7 +23,7 @@ export default function ForgotPassword() {
             toast.success('If that email is registered, a reset code has been sent.');
             setTimeout(() => navigate('/reset-password', { state: { email } }), 2000);
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Something went wrong');
+            toast.error(getErrorDetail(err, 'Something went wrong'));
         } finally {
             setLoading(false);
         }

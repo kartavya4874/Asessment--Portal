@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import client from '../../api/client';
 import PageTransition from '../../components/ui/PageTransition';
 import FileUpload from '../../components/ui/FileUpload';
+import { getErrorDetail } from '../../utils/errorHandler';
 
 export default function AssessmentForm() {
     const { id } = useParams();
@@ -82,7 +83,7 @@ export default function AssessmentForm() {
 
             navigate(`/admin/assessments/${assessmentId}`);
         } catch (err) {
-            toast.error(err.response?.data?.detail || `Failed to ${isEdit ? 'update' : 'create'} assessment`);
+            toast.error(getErrorDetail(err, `Failed to ${isEdit ? 'update' : 'create'} assessment`));
         } finally {
             setLoading(false);
         }

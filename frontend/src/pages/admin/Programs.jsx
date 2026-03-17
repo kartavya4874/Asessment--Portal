@@ -5,6 +5,7 @@ import client from '../../api/client';
 import PageTransition from '../../components/ui/PageTransition';
 import { StaggerContainer, StaggerItem } from '../../components/ui/PageTransition';
 import { SkeletonCard } from '../../components/ui/SkeletonLoader';
+import { getErrorDetail } from '../../utils/errorHandler';
 
 export default function Programs() {
     const [programs, setPrograms] = useState([]);
@@ -60,7 +61,7 @@ export default function Programs() {
             resetForm();
             fetchPrograms();
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Operation failed');
+            toast.error(getErrorDetail(err, 'Operation failed'));
         }
     };
 

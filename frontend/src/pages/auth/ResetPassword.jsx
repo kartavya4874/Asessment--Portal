@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import client from '../../api/client';
 import PageTransition from '../../components/ui/PageTransition';
 import AnimatedBackground from '../../components/ui/AnimatedBackground';
+import { getErrorDetail } from '../../utils/errorHandler';
 
 export default function ResetPassword() {
     const location = useLocation();
@@ -39,7 +40,7 @@ export default function ResetPassword() {
             toast.success(data.message || 'Password reset successfully!');
             navigate('/student/login');
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Reset failed');
+            toast.error(getErrorDetail(err, 'Reset failed'));
         } finally {
             setLoading(false);
         }
