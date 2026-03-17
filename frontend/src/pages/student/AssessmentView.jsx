@@ -69,13 +69,16 @@ export default function AssessmentView() {
             formData.append('textAnswer', textAnswer);
             files.forEach(f => formData.append('files', f));
 
-            const { data } = await client.post('/submissions', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
+            const { data } = await client.post('/submissions', formData);
 
             setSubmission(data);
+             // Update the URLs and textAnswer states with latest data from DB to stay in sync
+            if (data.urls) setUrls(data.urls.join(', '));
+            if (data.textAnswer) setTextAnswer(data.textAnswer);
+            
             toast.success(submission ? 'Submission updated!' : 'Submitted successfully!');
         } catch (err) {
+            console.error("Submission error details:", err.response?.data);
             let errorMsg = 'Submission failed';
             const detail = err.response?.data?.detail;
             if (detail) {
@@ -148,8 +151,8 @@ export default function AssessmentView() {
                         <div>
                             <h1 style={{ fontSize: '24px', fontWeight: 800, marginBottom: '10px' }}>{assessment.title}</h1>
                             <div style={{ display: 'flex', gap: '14px', fontSize: '13px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                                <span>📅 Start: {format(new Date(assessment.startAt), 'dd MMM yyyy, HH:mm')}</span>
-                                <span>⏰ Deadline: {format(new Date(assessment.deadline), 'dd MMM yyyy, HH:mm')}</span>
+                                {assessment.startAt && <span>📅 Start: {format(new Date(assessment.startAt), 'dd MMM yyyy, HH:mm')}</span>}
+                                {assessment.deadline && <span>⏰ Deadline: {format(new Date(assessment.deadline), 'dd MMM yyyy, HH:mm')}</span>}
                                 {assessment.maxMarks != null && <span>📝 Max Marks: {assessment.maxMarks}</span>}
                             </div>
                         </div>
@@ -200,7 +203,7 @@ export default function AssessmentView() {
                     >
                         <h3 style={{ fontSize: '14px', color: 'var(--success)', marginBottom: '8px', fontWeight: 700 }}>✅ Previously Submitted</h3>
                         <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                            Last submitted: {format(new Date(submission.submittedAt), 'dd MMM yyyy, HH:mm')}
+                            Last submitted: {submission.submittedAt ? format(new Date(submission.submittedAt), 'dd MMM yyyy, HH:mm') : 'Recently'}
                         </p>
                         {submission.files?.length > 0 && (
                             <div style={{ marginTop: '10px' }}>
