@@ -65,9 +65,18 @@ export default function AssessmentView() {
         try {
             const formData = new FormData();
             formData.append('assessmentId', id);
-            formData.append('urls', urls);
-            formData.append('textAnswer', textAnswer);
-            files.forEach(f => formData.append('files', f));
+            
+            // Explicitly format URLs for the backend's comma-separated parser
+            // This ensures strings like "link1, link2" are handled correctly
+            const formattedUrls = urls.split(',').map(u => u.trim()).filter(u => u).join(',');
+            formData.append('urls', formattedUrls);
+            
+            formData.append('textAnswer', textAnswer || "");
+            
+            // Add files individually
+            if (files && files.length > 0) {
+                files.forEach(f => formData.append('files', f));
+            }
 
             const { data } = await client.post('/submissions', formData);
 
