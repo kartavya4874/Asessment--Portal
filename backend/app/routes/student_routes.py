@@ -80,8 +80,10 @@ async def get_student(student_id: str, admin: dict = Depends(require_admin)):
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_student(data: AdminStudentCreate, admin: dict = Depends(require_admin)):
     """Admin creates a student account."""
+    email = data.email.lower().strip()
+    
     # Check for existing email or roll number
-    existing_email = await students_collection.find_one({"email": data.email})
+    existing_email = await students_collection.find_one({"email": email})
     if existing_email:
         raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -97,7 +99,7 @@ async def create_student(data: AdminStudentCreate, admin: dict = Depends(require
     student_doc = {
         "name": data.name,
         "rollNumber": data.rollNumber,
-        "email": data.email,
+        "email": email,
         "programId": data.programId,
         "specialization": data.specialization,
         "year": data.year,
@@ -141,6 +143,9 @@ async def update_student(
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
+
+    if "email" in update_data:
+        update_data["email"] = update_data["email"].lower().strip()
 
     # Check uniqueness if changing roll number or email
     if "rollNumber" in update_data and update_data["rollNumber"] != doc.get("rollNumber"):

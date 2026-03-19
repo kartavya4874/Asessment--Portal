@@ -33,5 +33,11 @@ class MarksUpdate(BaseModel):
     feedback: Optional[str] = ""
 
 
+class BulkMarksItem(BaseModel):
+    submissionId: str
+    marks: float
+    feedback: Optional[str] = ""
+
+
 class BulkMarksUpdate(BaseModel):
-    updates: List[dict]  # [{submissionId, marks, feedback}]
+    updates: List[BulkMarksItem]

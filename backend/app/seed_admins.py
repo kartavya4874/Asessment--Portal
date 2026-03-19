@@ -21,6 +21,7 @@ async def seed_admins():
 
     for name, email, password in admins:
         try:
+            email = email.lower().strip()
             existing = await db.admins.find_one({"email": email})
             if existing:
                 await db.admins.update_one(

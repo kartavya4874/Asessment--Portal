@@ -23,13 +23,13 @@ async def bulk_update_marks(
     errors = []
     for update in data.updates:
         try:
-            sub_doc = await submissions_collection.find_one({"_id": ObjectId(update["submissionId"])})
+            sub_doc = await submissions_collection.find_one({"_id": ObjectId(update.submissionId)})
         except Exception:
             continue
         if not sub_doc:
             continue
 
-        marks_val = update.get("marks")
+        marks_val = update.marks
         if marks_val is not None:
             assessment = await assessments_collection.find_one({"_id": ObjectId(sub_doc["assessmentId"])})
             max_marks = assessment.get("maxMarks") if assessment else None
@@ -38,11 +38,11 @@ async def bulk_update_marks(
                 continue
 
         result = await submissions_collection.update_one(
-            {"_id": ObjectId(update["submissionId"])},
+            {"_id": ObjectId(update.submissionId)},
             {
                 "$set": {
                     "marks": marks_val if marks_val is not None else 0,
-                    "feedback": update.get("feedback") or "",
+                    "feedback": update.feedback or "",
                 }
             },
         )

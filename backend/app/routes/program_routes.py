@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Depends
-from app.database import programs_collection
+from app.database import programs_collection, assessments_collection, students_collection, submissions_collection
 from app.auth import require_admin, get_current_user
 from app.models.program import ProgramCreate, ProgramUpdate, ProgramResponse
 
@@ -80,3 +80,14 @@ async def delete_program(program_id: str, admin: dict = Depends(require_admin)):
     result = await programs_collection.delete_one({"_id": ObjectId(program_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Program not found")
+
+    # Cascade delete all students in this program
+    await students_collection.delete_many({"programId": program_id})
+    
+    # Cascade delete all assessments in this program
+    assessments_cursor = assessments_collection.find({"programId": program_id})
+    async for assessment in assessments_cursor:
+        # For each assessment deleted, delete all of its submissions
+        await submissions_collection.delete_many({"assessmentId": str(assessment["_id"])})
+        
+    await assessments_collection.delete_many({"programId": program_id})

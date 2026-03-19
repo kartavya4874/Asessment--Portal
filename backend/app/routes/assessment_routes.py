@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
-from app.database import assessments_collection, programs_collection, students_collection
+from app.database import assessments_collection, programs_collection, students_collection, submissions_collection
 from app.auth import require_admin, get_current_user
 from app.models.assessment import AssessmentCreate, AssessmentUpdate, AssessmentResponse
 from app.firebase_storage import upload_file_to_firebase, generate_unique_filename, generate_signed_url
@@ -210,6 +210,9 @@ async def delete_assessment(assessment_id: str, admin: dict = Depends(require_ad
     result = await assessments_collection.delete_one({"_id": ObjectId(assessment_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Assessment not found")
+        
+    # Cascade delete all submissions for this assessment so they don't orphan
+    await submissions_collection.delete_many({"assessmentId": assessment_id})
 
 
 @router.post("/{assessment_id}/files", response_model=dict)
