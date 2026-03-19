@@ -136,9 +136,9 @@ async def create_or_update_submission(
     }
 
     if existing:
-        # Update: append new files to existing, or replace
+        # Update: append new files to existing
         if uploaded_files:
-            submission_data["files"] = uploaded_files
+            submission_data["files"] = existing.get("files", []) + uploaded_files
         else:
             submission_data["files"] = existing.get("files", [])
 

@@ -14,11 +14,16 @@ router = APIRouter(prefix="/export", tags=["Excel Export"])
 
 
 async def _get_students_with_submissions(program_id: str, assessment_id: str) -> list:
+    # Batch-fetch all submissions for this assessment first
+    submissions_map = {}
+    async for sub in submissions_collection.find({"assessmentId": assessment_id}):
+        submissions_map[sub["studentId"]] = sub
+
     students_data = []
     async for student in students_collection.find({"programId": program_id}):
-        submission = await submissions_collection.find_one(
-            {"assessmentId": assessment_id, "studentId": str(student["_id"])}
-        )
+        student_id_str = str(student["_id"])
+        submission = submissions_map.get(student_id_str, {})
+        
         students_data.append(
             {
                 "rollNumber": student.get("rollNumber", ""),
@@ -26,7 +31,7 @@ async def _get_students_with_submissions(program_id: str, assessment_id: str) ->
                 "email": student.get("email", ""),
                 "specialization": student.get("specialization", ""),
                 "year": student.get("year", ""),
-                "submission": submission if submission else {},
+                "submission": submission,
             }
         )
     return students_data

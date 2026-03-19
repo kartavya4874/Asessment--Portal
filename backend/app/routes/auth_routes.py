@@ -209,9 +209,10 @@ async def forgot_password(data: ForgotPasswordRequest):
 async def reset_password(data: ResetPasswordRequest):
     """Validate OTP and update password."""
     email = data.email.lower().strip()
+    otp = data.otp.strip()
     reset_record = await password_resets_collection.find_one({
         "email": email,
-        "otp": data.otp,
+        "otp": otp,
     })
 
     if not reset_record:

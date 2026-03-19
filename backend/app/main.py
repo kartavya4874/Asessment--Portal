@@ -12,6 +12,8 @@ from app.routes.submission_routes import router as submission_router
 from app.routes.marks_routes import router as marks_router
 from app.routes.export_routes import router as export_router
 from app.routes.student_routes import router as student_router
+from fastapi.responses import JSONResponse
+from bson.errors import InvalidId
 
 settings = get_settings()
 
@@ -65,6 +67,13 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+@app.exception_handler(InvalidId)
+async def invalid_object_id_handler(request, exc: InvalidId):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Invalid ID format provided"},
+    )
 
 # CORS — allow local dev and production origins
 origins = [
