@@ -3,7 +3,7 @@ from typing import Optional
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from app.database import students_collection, programs_collection, submissions_collection
-from app.auth import require_admin, hash_password
+from app.auth import require_admin, hash_password, get_scoped_program_ids
 from pydantic import BaseModel, EmailStr
 from app.utils.email_service import email_service
 from app.config import get_settings
@@ -63,6 +63,15 @@ async def list_students(
             {"email": {"$regex": search, "$options": "i"}},
         ]
 
+    # Scope by instructor's programs
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None:
+        if programId:
+            if programId not in scoped_ids:
+                return []
+        else:
+            query["programId"] = {"$in": scoped_ids}
+
     students = []
     async for doc in students_collection.find(query).sort("rollNumber", 1):
         students.append(student_doc_to_response(doc))
@@ -95,6 +104,11 @@ async def create_student(data: AdminStudentCreate, admin: dict = Depends(require
     program = await programs_collection.find_one({"_id": ObjectId(data.programId)})
     if not program:
         raise HTTPException(status_code=400, detail="Invalid program")
+
+    # Ownership check
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None and data.programId not in scoped_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this program")
 
     student_doc = {
         "name": data.name,

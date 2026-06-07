@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.database import programs_collection, assessments_collection, students_collection, submissions_collection
-from app.auth import require_admin, get_current_user
+from app.auth import require_admin, get_current_user, get_scoped_program_ids, build_program_filter
 from app.models.program import ProgramCreate, ProgramUpdate, ProgramResponse
 
 router = APIRouter(prefix="/programs", tags=["Programs"])
@@ -20,9 +20,14 @@ def program_doc_to_response(doc: dict) -> dict:
 
 
 @router.get("", response_model=list)
-async def list_programs():
+async def list_programs(admin: dict = Depends(require_admin)):
+    scoped_ids = await get_scoped_program_ids(admin)
+    query = {}
+    if scoped_ids is not None:
+        query["_id"] = {"$in": [ObjectId(pid) for pid in scoped_ids]}
+
     programs = []
-    async for doc in programs_collection.find():
+    async for doc in programs_collection.find(query):
         programs.append(program_doc_to_response(doc))
     return programs
 
@@ -64,6 +69,11 @@ async def update_program(
     if not doc:
         raise HTTPException(status_code=404, detail="Program not found")
 
+    # Ownership check: instructors can only update their own programs
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None and program_id not in scoped_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this program")
+
     update_data = {k: v for k, v in data.model_dump().items() if v is not None}
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
@@ -77,6 +87,11 @@ async def update_program(
 
 @router.delete("/{program_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_program(program_id: str, admin: dict = Depends(require_admin)):
+    # Ownership check
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None and program_id not in scoped_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this program")
+
     result = await programs_collection.delete_one({"_id": ObjectId(program_id)})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Program not found")

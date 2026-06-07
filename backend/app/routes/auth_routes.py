@@ -1,11 +1,11 @@
 import re
 import secrets
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 from bson import ObjectId
 from bson.errors import InvalidId
 from app.database import admins_collection, students_collection, programs_collection, password_resets_collection
-from app.auth import hash_password, verify_password, create_access_token
+from app.auth import hash_password, verify_password, create_access_token, require_super_admin
 from app.models.admin import AdminLogin, AdminResponse
 from app.models.student import StudentRegister, StudentLogin, StudentResponse, ForgotPasswordRequest, ResetPasswordRequest
 from app.config import get_settings
@@ -30,7 +30,12 @@ async def admin_login(data: AdminLogin):
                 detail="Invalid email or password",
             )
 
-        token = create_access_token({"sub": str(admin["_id"]), "role": "admin"})
+        admin_role = admin.get("adminRole", "instructor")
+        token = create_access_token({
+            "sub": str(admin["_id"]),
+            "role": "admin",
+            "adminRole": admin_role,
+        })
         return {
             "token": token,
             "user": {
@@ -38,6 +43,7 @@ async def admin_login(data: AdminLogin):
                 "name": admin["name"],
                 "email": admin["email"],
                 "role": "admin",
+                "adminRole": admin_role,
             },
         }
     except HTTPException as e:
@@ -261,3 +267,109 @@ async def reset_password(data: ResetPasswordRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to update password. Please try again later.",
         )
+
+
+# ─── Instructor Management (Super Admin Only) ─────────────
+
+@router.get("/instructors")
+async def list_instructors(admin: dict = Depends(require_super_admin)):
+    """List all instructor accounts (super admin only)."""
+    instructors = []
+    async for doc in admins_collection.find().sort("name", 1):
+        instructors.append({
+            "id": str(doc["_id"]),
+            "name": doc["name"],
+            "email": doc["email"],
+            "adminRole": doc.get("adminRole", "instructor"),
+            "createdAt": doc.get("createdAt", ""),
+        })
+    return instructors
+
+
+from pydantic import BaseModel as _BaseModel
+
+
+class InstructorCreate(_BaseModel):
+    name: str
+    email: str
+    password: str
+
+
+class InstructorUpdate(_BaseModel):
+    name: str = None
+    email: str = None
+    password: str = None
+
+
+@router.post("/instructors", status_code=status.HTTP_201_CREATED)
+async def create_instructor(data: InstructorCreate, admin: dict = Depends(require_super_admin)):
+    """Create a new instructor account (super admin only)."""
+    email = data.email.lower().strip()
+    existing = await admins_collection.find_one({"email": email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    doc = {
+        "name": data.name,
+        "email": email,
+        "passwordHash": hash_password(data.password),
+        "adminRole": "instructor",
+        "createdAt": datetime.now(timezone.utc),
+    }
+    result = await admins_collection.insert_one(doc)
+    return {
+        "id": str(result.inserted_id),
+        "name": data.name,
+        "email": email,
+        "adminRole": "instructor",
+        "message": "Instructor created successfully",
+    }
+
+
+@router.put("/instructors/{instructor_id}")
+async def update_instructor(
+    instructor_id: str,
+    data: InstructorUpdate,
+    admin: dict = Depends(require_super_admin),
+):
+    """Update an instructor account (super admin only)."""
+    try:
+        doc = await admins_collection.find_one({"_id": ObjectId(instructor_id)})
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid instructor ID")
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Instructor not found")
+
+    update_data = {}
+    if data.name:
+        update_data["name"] = data.name
+    if data.email:
+        update_data["email"] = data.email.lower().strip()
+    if data.password:
+        update_data["passwordHash"] = hash_password(data.password)
+
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    await admins_collection.update_one(
+        {"_id": ObjectId(instructor_id)}, {"$set": update_data}
+    )
+    return {"message": "Instructor updated successfully"}
+
+
+@router.delete("/instructors/{instructor_id}")
+async def delete_instructor(instructor_id: str, admin: dict = Depends(require_super_admin)):
+    """Delete an instructor account (super admin only). Cannot delete self."""
+    if instructor_id == admin["id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+
+    try:
+        result = await admins_collection.delete_one({"_id": ObjectId(instructor_id)})
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid instructor ID")
+
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Instructor not found")
+
+    return {"message": "Instructor deleted successfully"}

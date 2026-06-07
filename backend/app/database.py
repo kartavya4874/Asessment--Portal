@@ -20,6 +20,10 @@ submissions_collection = db["submissions"]
 password_resets_collection = db["password_resets"]
 email_queue_collection = db["email_queue"]  # For rate-limited email delivery
 
+# Attendance collections
+attendance_sessions_collection = db["attendance_sessions"]
+attendance_records_collection = db["attendance_records"]
+
 
 async def connect_db():
     """Ping MongoDB to verify connection."""
@@ -48,6 +52,19 @@ async def setup_indexes():
         await students_collection.create_index([("email", pymongo.ASCENDING)], unique=True)
         await students_collection.create_index([("rollNumber", pymongo.ASCENDING)], unique=True)
         await students_collection.create_index([("programId", pymongo.ASCENDING)])
+
+        # Attendance: prevent duplicate attendance per session
+        await attendance_records_collection.create_index(
+            [("sessionId", pymongo.ASCENDING), ("studentId", pymongo.ASCENDING)],
+            unique=True
+        )
+        await attendance_records_collection.create_index([("sessionId", pymongo.ASCENDING)])
+        await attendance_records_collection.create_index([("studentId", pymongo.ASCENDING)])
+        await attendance_records_collection.create_index([("markedAt", pymongo.DESCENDING)])
+
+        # Attendance sessions
+        await attendance_sessions_collection.create_index([("date", pymongo.DESCENDING)])
+        await attendance_sessions_collection.create_index([("isActive", pymongo.ASCENDING)])
 
         print("⚡ MongoDB indexes created/verified")
     except Exception as e:

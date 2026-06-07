@@ -7,7 +7,7 @@ from app.database import (
     submissions_collection,
     students_collection,
 )
-from app.auth import require_admin
+from app.auth import require_admin, get_scoped_program_ids
 from app.utils.excel_export import generate_assessment_excel, generate_combined_excel
 
 router = APIRouter(prefix="/export", tags=["Excel Export"])
@@ -52,6 +52,12 @@ async def export_assessment(
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Program or assessment not found")
 
+    # Ownership check
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None and program_id not in scoped_ids:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="You do not have access to this program")
+
     students_data = await _get_students_with_submissions(program_id, assessment_id)
 
     excel_buffer = generate_assessment_excel(
@@ -70,9 +76,14 @@ async def export_assessment(
 
 @router.get("/all")
 async def export_all(admin: dict = Depends(require_admin)):
+    scoped_ids = await get_scoped_program_ids(admin)
+    program_query = {}
+    if scoped_ids is not None:
+        program_query["_id"] = {"$in": [ObjectId(pid) for pid in scoped_ids]}
+
     programs_data = []
 
-    async for program in programs_collection.find():
+    async for program in programs_collection.find(program_query):
         program_id = str(program["_id"])
         assessments = []
 

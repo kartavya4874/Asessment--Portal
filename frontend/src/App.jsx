@@ -28,6 +28,12 @@ import ExportAll from './pages/admin/ExportAll';
 import StudentDashboard from './pages/student/Dashboard';
 import AssessmentView from './pages/student/AssessmentView';
 import MyResults from './pages/student/MyResults';
+import AttendanceSessions from './pages/admin/AttendanceSessions';
+import AttendanceQRDisplay from './pages/admin/AttendanceQRDisplay';
+import AttendanceSessionDetail from './pages/admin/AttendanceSessionDetail';
+import MarkAttendance from './pages/student/MarkAttendance';
+import MyAttendance from './pages/student/MyAttendance';
+import InstructorManagement from './pages/admin/InstructorManagement';
 
 // ─── Loading fallback ───────────────────────────────────
 function PageLoader() {
@@ -98,6 +104,10 @@ export default function App() {
                   <Route path="assessments/:id/student/:studentId" element={<StudentDetail />} />
                   <Route path="students/:id" element={<AdminStudentDashboard />} />
                   <Route path="export" element={<ExportAll />} />
+                  <Route path="attendance" element={<AttendanceSessions />} />
+                  <Route path="attendance/:id" element={<AttendanceSessionDetail />} />
+                  <Route path="attendance/:id/qr" element={<AttendanceQRDisplay />} />
+                  <Route path="instructors" element={<InstructorManagement />} />
                 </Route>
 
                 {/* Student Routes */}
@@ -107,6 +117,14 @@ export default function App() {
                   <Route index element={<StudentDashboard />} />
                   <Route path="assessment/:id" element={<AssessmentView />} />
                   <Route path="results" element={<MyResults />} />
+                  <Route path="attendance" element={<MyAttendance />} />
+                </Route>
+
+                {/* Public Attendance Scan Route (student must be logged in) */}
+                <Route path="/attendance/scan" element={
+                  <ProtectedRoute role="student"><StudentLayout /></ProtectedRoute>
+                }>
+                  <Route index element={<MarkAttendance />} />
                 </Route>
               </Routes>
             </AnimatePresence>

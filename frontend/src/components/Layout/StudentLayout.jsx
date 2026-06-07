@@ -91,6 +91,24 @@ export default function StudentLayout() {
                         >
                             📊 My Results
                         </NavLink>
+                        <NavLink
+                            to="/student/attendance"
+                            style={({ isActive }) => ({
+                                padding: '10px 18px',
+                                borderRadius: '10px',
+                                fontSize: '14px',
+                                fontWeight: isActive ? 600 : 400,
+                                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                background: isActive
+                                    ? 'linear-gradient(135deg, rgba(124,108,240,0.12), rgba(78,168,222,0.08))'
+                                    : 'transparent',
+                                textDecoration: 'none',
+                                transition: 'all 0.25s',
+                                boxShadow: isActive ? '0 2px 12px var(--glow-primary)' : 'none',
+                            })}
+                        >
+                            📋 Attendance
+                        </NavLink>
                     </nav>
                 </div>
 

@@ -4,11 +4,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
-const navItems = [
+const baseNavItems = [
     { path: '/admin', label: 'Dashboard', icon: '📊', exact: true },
     { path: '/admin/programs', label: 'Programs', icon: '🎓' },
     { path: '/admin/students', label: 'Students', icon: '👥' },
     { path: '/admin/assessments', label: 'Assessments', icon: '📝' },
+    { path: '/admin/attendance', label: 'Attendance', icon: '📋' },
+    { path: '/admin/instructors', label: 'Instructors', icon: '👑', superAdminOnly: true },
     { path: '/admin/export', label: 'Export All', icon: '📥' },
 ];
 
@@ -25,6 +27,9 @@ export default function AdminLayout() {
     const { user, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
+
+    const isSuperAdmin = user?.adminRole === 'super_admin';
+    const navItems = baseNavItems.filter(item => !item.superAdminOnly || isSuperAdmin);
 
     const handleLogout = () => {
         logout();

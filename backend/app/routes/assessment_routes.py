@@ -4,7 +4,7 @@ from typing import Optional, List
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
 from app.database import assessments_collection, programs_collection, students_collection, submissions_collection
-from app.auth import require_admin, get_current_user
+from app.auth import require_admin, get_current_user, get_scoped_program_ids, build_program_filter
 from app.models.assessment import AssessmentCreate, AssessmentUpdate, AssessmentResponse
 from app.firebase_storage import upload_file_to_firebase, generate_unique_filename, generate_signed_url
 from app.utils.email_service import email_service
@@ -79,6 +79,17 @@ async def list_assessments(
     if programId:
         query["programId"] = programId
 
+    # Scope by instructor's programs
+    if current_user["role"] == "admin":
+        scoped_ids = await get_scoped_program_ids(current_user)
+        if scoped_ids is not None:
+            if programId:
+                # Verify the requested program is in scope
+                if programId not in scoped_ids:
+                    return []
+            else:
+                query["programId"] = {"$in": scoped_ids}
+
     print(f"DEBUG: list_assessments query: {query}")
     docs = await assessments_collection.find(query).sort("createdAt", -1).to_list(length=None)
     assessments = list(await asyncio.gather(*[assessment_doc_to_response(doc) for doc in docs]))
@@ -104,6 +115,11 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
     if not program:
         print(f"DEBUG: create_assessment failed - Invalid program: {data.programId}")
         raise HTTPException(status_code=400, detail="Invalid program")
+
+    # Ownership check: instructors can only create assessments in their programs
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None and data.programId not in scoped_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this program")
 
     if data.deadline <= data.startAt:
         print(f"DEBUG: create_assessment failed - Invalid timeline")
@@ -187,6 +203,11 @@ async def update_assessment(
     doc = await assessments_collection.find_one({"_id": ObjectId(assessment_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Assessment not found")
+
+    # Ownership check
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None and doc.get("programId") not in scoped_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this assessment")
 
     if doc.get("isLocked"):
         raise HTTPException(

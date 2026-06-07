@@ -157,3 +157,273 @@ def generate_combined_excel(
     wb.save(output)
     output.seek(0)
     return output
+
+
+# ─── Attendance Excel Exports ──────────────────────────────
+
+ATTENDANCE_HEADER_FILL = PatternFill(start_color="1E88E5", end_color="1E88E5", fill_type="solid")
+PRESENT_FILL = PatternFill(start_color="C8E6C9", end_color="C8E6C9", fill_type="solid")
+LATE_FILL = PatternFill(start_color="FFF9C4", end_color="FFF9C4", fill_type="solid")
+ABSENT_FILL = PatternFill(start_color="FFCDD2", end_color="FFCDD2", fill_type="solid")
+
+ATTENDANCE_COLUMNS = [
+    ("S.No", 8),
+    ("Roll No", 16),
+    ("Name", 28),
+    ("Email", 35),
+    ("Status", 12),
+    ("Marked At", 22),
+]
+
+
+def _style_attendance_header(ws, row=1, columns=None):
+    cols = columns or ATTENDANCE_COLUMNS
+    for col_idx, (col_name, width) in enumerate(cols, 1):
+        cell = ws.cell(row=row, column=col_idx, value=col_name)
+        cell.font = HEADER_FONT
+        cell.fill = ATTENDANCE_HEADER_FILL
+        cell.alignment = HEADER_ALIGNMENT
+        cell.border = THIN_BORDER
+        ws.column_dimensions[cell.column_letter].width = width
+
+
+def _get_status_fill(status):
+    if status == "present":
+        return PRESENT_FILL
+    elif status == "late":
+        return LATE_FILL
+    return ABSENT_FILL
+
+
+def generate_attendance_session_excel(
+    session_title: str,
+    session_date: str,
+    slot_label: str,
+    records: list,
+    absent_students: list,
+) -> BytesIO:
+    """Generate an Excel file for a single attendance session."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Attendance"
+
+    # Title rows
+    ws.merge_cells("A1:F1")
+    title_cell = ws.cell(row=1, column=1)
+    title_cell.value = f"{session_title}"
+    title_cell.font = Font(name="Calibri", bold=True, size=14, color="1E88E5")
+    title_cell.alignment = Alignment(horizontal="center")
+
+    ws.merge_cells("A2:F2")
+    subtitle = ws.cell(row=2, column=1)
+    subtitle.value = f"Date: {session_date}  |  Slot: {slot_label}  |  Total Records: {len(records)}  |  Absent: {len(absent_students)}"
+    subtitle.font = Font(name="Calibri", size=11, color="666666")
+    subtitle.alignment = Alignment(horizontal="center")
+
+    ws.append([])  # Blank row
+
+    # Header on row 4
+    _style_attendance_header(ws, row=4)
+
+    # Present + Late records
+    row_idx = 5
+    serial = 1
+    for record in sorted(records, key=lambda r: r.get("rollNumber", "")):
+        status = record.get("status", "present")
+        marked_at = record.get("markedAt", "")
+        if isinstance(marked_at, str) and "T" in marked_at:
+            try:
+                from datetime import datetime as dt
+                t = dt.fromisoformat(marked_at.replace("Z", "+00:00"))
+                marked_at = t.strftime("%I:%M:%S %p")
+            except Exception:
+                pass
+
+        values = [
+            serial,
+            record.get("rollNumber", ""),
+            record.get("studentName", ""),
+            record.get("email", ""),
+            "✅ Present" if status == "present" else "⏰ Late",
+            marked_at,
+        ]
+        fill = _get_status_fill(status)
+        for col_idx, value in enumerate(values, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.alignment = CELL_ALIGNMENT
+            cell.border = THIN_BORDER
+            if col_idx == 5:  # Status column
+                cell.fill = fill
+        row_idx += 1
+        serial += 1
+
+    # Absent students
+    if absent_students:
+        row_idx += 1  # Blank separator
+        for student in sorted(absent_students, key=lambda s: s.get("rollNumber", "")):
+            values = [
+                serial,
+                student.get("rollNumber", ""),
+                student.get("studentName", student.get("name", "")),
+                student.get("email", ""),
+                "❌ Absent",
+                "—",
+            ]
+            for col_idx, value in enumerate(values, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                cell.alignment = CELL_ALIGNMENT
+                cell.border = THIN_BORDER
+                if col_idx == 5:
+                    cell.fill = ABSENT_FILL
+            row_idx += 1
+            serial += 1
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
+
+
+def generate_attendance_combined_excel(
+    sessions_data: list,
+    all_students: list,
+) -> BytesIO:
+    """
+    Generate a combined attendance Excel workbook with:
+    - Sheet 1: Master Overview (students × sessions matrix with P/L/A)
+    - Sheet per session: detailed attendance
+    """
+    wb = Workbook()
+
+    # ─── Sheet 1: Master Overview ───────────────────────────
+    ws_master = wb.active
+    ws_master.title = "Overview"
+
+    # Build header: S.No, Roll No, Name, [Session1, Session2, ...], Total Present, Total Late, %, Status
+    session_titles = [s["title"] for s in sessions_data]
+    overview_cols = [
+        ("S.No", 8), ("Roll No", 16), ("Name", 25),
+    ]
+    for title in session_titles:
+        overview_cols.append((title[:15], 14))
+    overview_cols.extend([
+        ("Present", 10), ("Late", 8), ("Absent", 8), ("Total", 8), ("Attendance %", 14),
+    ])
+
+    # Style header
+    for col_idx, (col_name, width) in enumerate(overview_cols, 1):
+        cell = ws_master.cell(row=1, column=col_idx, value=col_name)
+        cell.font = HEADER_FONT
+        cell.fill = ATTENDANCE_HEADER_FILL
+        cell.alignment = HEADER_ALIGNMENT
+        cell.border = THIN_BORDER
+        ws_master.column_dimensions[cell.column_letter].width = width
+
+    # Build a lookup: { session_id: { student_id: status } }
+    session_records_map = {}
+    for s in sessions_data:
+        sid = s["sessionId"]
+        record_map = {}
+        for r in s.get("records", []):
+            record_map[r.get("studentId", "")] = r.get("status", "absent")
+        session_records_map[sid] = record_map
+
+    # One row per student
+    sorted_students = sorted(all_students, key=lambda s: s.get("rollNumber", ""))
+    for row_offset, student in enumerate(sorted_students):
+        row = row_offset + 2
+        st_id = student.get("id", student.get("studentId", ""))
+
+        ws_master.cell(row=row, column=1, value=row_offset + 1).border = THIN_BORDER
+        ws_master.cell(row=row, column=2, value=student.get("rollNumber", "")).border = THIN_BORDER
+        ws_master.cell(row=row, column=3, value=student.get("name", "")).border = THIN_BORDER
+
+        present_count = 0
+        late_count = 0
+        absent_count = 0
+
+        for s_idx, s in enumerate(sessions_data):
+            col = 4 + s_idx
+            status = session_records_map.get(s["sessionId"], {}).get(st_id, "absent")
+            label = "P" if status == "present" else "L" if status == "late" else "A"
+
+            cell = ws_master.cell(row=row, column=col, value=label)
+            cell.border = THIN_BORDER
+            cell.alignment = Alignment(horizontal="center")
+            cell.fill = _get_status_fill(status)
+
+            if status == "present":
+                present_count += 1
+            elif status == "late":
+                late_count += 1
+            else:
+                absent_count += 1
+
+        total_sessions = len(sessions_data)
+        attended = present_count + late_count
+        pct = round((attended / total_sessions * 100), 1) if total_sessions > 0 else 0
+
+        base_col = 4 + len(sessions_data)
+        for ci, val in enumerate([present_count, late_count, absent_count, total_sessions, f"{pct}%"]):
+            cell = ws_master.cell(row=row, column=base_col + ci, value=val)
+            cell.border = THIN_BORDER
+            cell.alignment = Alignment(horizontal="center")
+
+        # Color the percentage cell
+        pct_cell = ws_master.cell(row=row, column=base_col + 4)
+        if pct >= 75:
+            pct_cell.fill = PRESENT_FILL
+        elif pct >= 50:
+            pct_cell.fill = LATE_FILL
+        else:
+            pct_cell.fill = ABSENT_FILL
+
+    # ─── Per-Session Sheets ─────────────────────────────────
+    for s_idx, s in enumerate(sessions_data):
+        sheet_name = f"{s_idx + 1}. {s['title']}"[:31]
+        ws = wb.create_sheet(title=sheet_name)
+        _style_attendance_header(ws, row=1)
+
+        row_idx = 2
+        serial = 1
+        session_map = session_records_map.get(s["sessionId"], {})
+
+        for student in sorted_students:
+            st_id = student.get("id", student.get("studentId", ""))
+            status = session_map.get(st_id, "absent")
+
+            # Find mark time from records
+            marked_at = "—"
+            for r in s.get("records", []):
+                if r.get("studentId") == st_id:
+                    raw = r.get("markedAt", "")
+                    if isinstance(raw, str) and "T" in raw:
+                        try:
+                            from datetime import datetime as dt
+                            t = dt.fromisoformat(raw.replace("Z", "+00:00"))
+                            marked_at = t.strftime("%I:%M:%S %p")
+                        except Exception:
+                            marked_at = raw
+                    else:
+                        marked_at = str(raw)
+                    break
+
+            status_label = "✅ Present" if status == "present" else "⏰ Late" if status == "late" else "❌ Absent"
+            values = [serial, student.get("rollNumber", ""), student.get("name", ""), student.get("email", ""), status_label, marked_at]
+            fill = _get_status_fill(status)
+            for col_idx, value in enumerate(values, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                cell.alignment = CELL_ALIGNMENT
+                cell.border = THIN_BORDER
+                if col_idx == 5:
+                    cell.fill = fill
+            row_idx += 1
+            serial += 1
+
+    if not wb.sheetnames:
+        wb.create_sheet(title="No Data")
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    return output
