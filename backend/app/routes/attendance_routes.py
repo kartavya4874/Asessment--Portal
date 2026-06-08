@@ -86,6 +86,8 @@ async def create_session(data: CreateSessionRequest, admin=Depends(require_admin
         "isActive": True,
         "lateThresholdMinutes": data.lateThresholdMinutes,
         "createdAt": now,
+        "programId": data.programId if data.programId else None,
+        "domainId": data.domainId if data.domainId else None,
     }
 
     result = await attendance_sessions_collection.insert_one(session_doc)
@@ -102,6 +104,8 @@ async def create_session(data: CreateSessionRequest, admin=Depends(require_admin
         "qrUrl": qr_url,
         "isActive": True,
         "sessionStart": now.isoformat(),
+        "programId": session_doc["programId"],
+        "domainId": session_doc["domainId"],
         "message": "Session created! Display the QR code for students to scan.",
     }
 
@@ -111,18 +115,31 @@ async def list_sessions(admin=Depends(require_admin)):
     """List all attendance sessions (newest first), scoped by instructor."""
     query = {}
     # Instructors only see their own sessions
-    if admin.get("adminRole") != "super_admin":
+    if admin.get("adminRole") != "super_admin" and admin.get("email") != "admin@geetauniversity.edu.in":
         query["createdBy"] = admin["id"]
-
-    # Scope student count to instructor's programs
-    student_filter = await _get_scoped_student_filter(admin)
-    total_students = await _get_total_students(student_filter)
 
     sessions = []
     cursor = attendance_sessions_collection.find(query).sort("date", -1)
     async for s in cursor:
         sid = str(s["_id"])
         counts = await _count_records(sid)
+
+        # Dynamic student filter for this specific session
+        student_filter = {}
+        session_prog_id = s.get("programId")
+        if session_prog_id:
+            student_filter["programId"] = session_prog_id
+        else:
+            scoped_ids = await get_scoped_program_ids(admin)
+            if scoped_ids is not None:
+                student_filter["programId"] = {"$in": scoped_ids}
+
+        session_dom_id = s.get("domainId")
+        if session_dom_id:
+            student_filter["enrolledSubjects"] = session_dom_id
+
+        session_total_students = await students_collection.count_documents(student_filter)
+
         sessions.append({
             "id": sid,
             "title": s["title"],
@@ -135,7 +152,9 @@ async def list_sessions(admin=Depends(require_admin)):
             "lateThresholdMinutes": s.get("lateThresholdMinutes", 15),
             "presentCount": counts["present"],
             "lateCount": counts["late"],
-            "totalStudents": total_students,
+            "totalStudents": session_total_students,
+            "programId": s.get("programId"),
+            "domainId": s.get("domainId"),
             "createdAt": s["createdAt"].isoformat(),
         })
     return sessions
@@ -152,8 +171,19 @@ async def get_session_detail(session_id: str, admin=Depends(require_admin)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Scope students to instructor's programs
-    student_filter = await _get_scoped_student_filter(admin)
+    # Build session student filter
+    student_filter = {}
+    session_prog_id = session.get("programId")
+    if session_prog_id:
+        student_filter["programId"] = session_prog_id
+    else:
+        scoped_ids = await get_scoped_program_ids(admin)
+        if scoped_ids is not None:
+            student_filter["programId"] = {"$in": scoped_ids}
+
+    session_dom_id = session.get("domainId")
+    if session_dom_id:
+        student_filter["enrolledSubjects"] = session_dom_id
 
     # Build a set of scoped student IDs for filtering records
     scoped_student_ids = set()
@@ -165,7 +195,7 @@ async def get_session_detail(session_id: str, admin=Depends(require_admin)):
     cursor = attendance_records_collection.find({"sessionId": session_id}).sort("markedAt", 1)
     async for r in cursor:
         if r["studentId"] not in scoped_student_ids:
-            continue  # Skip students not in this instructor's programs
+            continue  # Skip students not matching session constraints
         student = await students_collection.find_one({"_id": ObjectId(r["studentId"])})
         records.append({
             "id": str(r["_id"]),
@@ -181,7 +211,7 @@ async def get_session_detail(session_id: str, admin=Depends(require_admin)):
     present_count = sum(1 for r in records if r["status"] == "present")
     late_count = sum(1 for r in records if r["status"] == "late")
 
-    # Get list of absent students (only from scoped programs)
+    # Get list of absent students
     attended_ids = {r["studentId"] for r in records}
     absent_students = []
     async for st in students_collection.find(student_filter):
@@ -209,6 +239,8 @@ async def get_session_detail(session_id: str, admin=Depends(require_admin)):
         "lateCount": late_count,
         "absentCount": total_students - present_count - late_count,
         "totalStudents": total_students,
+        "programId": session.get("programId"),
+        "domainId": session.get("domainId"),
         "records": records,
         "absentStudents": absent_students,
     }
@@ -315,6 +347,25 @@ async def mark_attendance(data: MarkAttendanceRequest, request: Request, student
         raise HTTPException(
             status_code=400,
             detail="Invalid or expired QR code. Please scan the latest QR code displayed on screen."
+        )
+
+    # Verify student constraints match session requirements
+    student_doc = await students_collection.find_one({"_id": ObjectId(student["id"])})
+    if not student_doc:
+        raise HTTPException(status_code=404, detail="Student record not found")
+
+    session_prog_id = session.get("programId")
+    if session_prog_id and student_doc.get("programId") != session_prog_id:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not enrolled in the program required for this attendance session."
+        )
+
+    session_dom_id = session.get("domainId")
+    if session_dom_id and session_dom_id not in student_doc.get("enrolledSubjects", []):
+        raise HTTPException(
+            status_code=403,
+            detail="You are not enrolled in the subject/domain track required for this attendance session."
         )
 
     # Check if already marked
@@ -607,8 +658,20 @@ async def export_session_excel(session_id: str, admin=Depends(require_admin)):
             "markedAt": r["markedAt"].isoformat(),
         })
 
-    # Get absent students (scoped to instructor's programs)
-    student_filter = await _get_scoped_student_filter(admin)
+    # Build session student filter
+    student_filter = {}
+    session_prog_id = session.get("programId")
+    if session_prog_id:
+        student_filter["programId"] = session_prog_id
+    else:
+        scoped_ids = await get_scoped_program_ids(admin)
+        if scoped_ids is not None:
+            student_filter["programId"] = {"$in": scoped_ids}
+
+    session_dom_id = session.get("domainId")
+    if session_dom_id:
+        student_filter["enrolledSubjects"] = session_dom_id
+
     attended_ids = {r["studentId"] for r in records}
     absent_students = []
     async for st in students_collection.find(student_filter):

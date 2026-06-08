@@ -44,8 +44,17 @@ def domain_doc_to_response(doc: dict) -> dict:
 @router.get("", response_model=List[dict])
 async def list_domains(user: dict = Depends(get_current_user)):
     """List all domains/subjects available."""
+    query = {}
+    if user["role"] == "admin":
+        from app.database import admins_collection
+        admin_doc = await admins_collection.find_one({"_id": ObjectId(user["id"])})
+        if admin_doc:
+            role_in_db = admin_doc.get("adminRole", "instructor")
+            if role_in_db != "super_admin" and admin_doc.get("email") != "admin@geetauniversity.edu.in":
+                query["instructors"] = user["id"]
+
     domains = []
-    async for doc in domains_collection.find().sort("name", 1):
+    async for doc in domains_collection.find(query).sort("name", 1):
         domains.append(domain_doc_to_response(doc))
     return domains
 
@@ -147,7 +156,7 @@ async def disenroll_domain(domain_id: str, student: dict = Depends(require_stude
 
 @router.post("/admin/enroll", response_model=dict)
 async def admin_enroll_student(
-    data: AdminStudentEnrollPayload, admin: dict = Depends(require_admin)
+    data: AdminStudentEnrollPayload, admin: dict = Depends(require_super_admin)
 ):
     """Admin manually enrolls a student in a domain/subject."""
     # Verify student exists
@@ -186,7 +195,7 @@ async def admin_enroll_student(
 
 @router.post("/admin/disenroll", response_model=dict)
 async def admin_disenroll_student(
-    data: AdminStudentEnrollPayload, admin: dict = Depends(require_admin)
+    data: AdminStudentEnrollPayload, admin: dict = Depends(require_super_admin)
 ):
     """Admin manually removes a student from a domain/subject."""
     await students_collection.update_one(
@@ -235,9 +244,27 @@ async def my_enrollments(student: dict = Depends(require_student)):
 @router.get("/admin/students", response_model=List[dict])
 async def admin_list_student_enrollments(admin: dict = Depends(require_admin)):
     """Admin endpoint to see students and their subject enrollments."""
+    from app.database import admins_collection
+    admin_doc = await admins_collection.find_one({"_id": ObjectId(admin["id"])})
+    
+    is_super = False
+    if admin_doc:
+        role_in_db = admin_doc.get("adminRole", "instructor")
+        if role_in_db == "super_admin" or admin_doc.get("email") == "admin@geetauniversity.edu.in":
+            is_super = True
+
+    query = {}
+    if not is_super:
+        # Find all domains allocated to this instructor
+        allocated_domains = []
+        async for d in domains_collection.find({"instructors": admin["id"]}):
+            allocated_domains.append(str(d["_id"]))
+        # Only fetch students enrolled in at least one of these domains
+        query = {"enrolledSubjects": {"$in": allocated_domains}}
+
     students = []
     async for s in students_collection.find(
-        {},
+        query,
         {
             "name": 1,
             "email": 1,

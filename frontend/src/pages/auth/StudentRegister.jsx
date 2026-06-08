@@ -21,7 +21,7 @@ export default function StudentRegister() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        client.get('/programs').then(res => setPrograms(res.data)).catch(() => { });
+        client.get('/programs/public').then(res => setPrograms(res.data)).catch(() => { });
     }, []);
 
     const handleChange = (e) => {

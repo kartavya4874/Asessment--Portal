@@ -31,6 +31,14 @@ async def list_programs(admin: dict = Depends(require_admin)):
         programs.append(program_doc_to_response(doc))
     return programs
 
+@router.get("/public", response_model=list)
+async def list_programs_public():
+    """Public endpoint to list all programs (used during student registration)."""
+    programs = []
+    async for doc in programs_collection.find({}):
+        programs.append(program_doc_to_response(doc))
+    return programs
+
 
 @router.get("/{program_id}", response_model=dict)
 async def get_program(program_id: str):

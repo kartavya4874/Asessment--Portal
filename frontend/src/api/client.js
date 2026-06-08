@@ -22,7 +22,9 @@ client.interceptors.response.use(
     (response) => response,
     (error) => {
         const isLoginRequest = error.config?.url?.includes('/auth/admin/login') ||
-            error.config?.url?.includes('/auth/student/login');
+            error.config?.url?.includes('/auth/student/login') ||
+            error.config?.url?.includes('/auth/student/register') ||
+            error.config?.url?.includes('/programs/public');
 
         if (error.response?.status === 401 && !isLoginRequest) {
             localStorage.removeItem('token');

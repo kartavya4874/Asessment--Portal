@@ -18,6 +18,8 @@ class CreateSessionRequest(BaseModel):
     slotType: str = Field(default="morning_checkin")
     lateThresholdMinutes: int = Field(default=15, ge=1, le=120)
     sessionDurationMinutes: int = Field(default=120, ge=10, le=480)
+    programId: Optional[str] = None
+    domainId: Optional[str] = None
 
 
 class MarkAttendanceRequest(BaseModel):
@@ -40,6 +42,8 @@ class SessionResponse(BaseModel):
     lateCount: int = 0
     totalStudents: int = 0
     createdAt: datetime
+    programId: Optional[str] = None
+    domainId: Optional[str] = None
 
 
 class SessionDetailResponse(SessionResponse):

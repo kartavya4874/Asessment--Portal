@@ -17,17 +17,23 @@ export default function AttendanceSessions() {
     const [showModal, setShowModal] = useState(false);
     const [creating, setCreating] = useState(false);
     const [stats, setStats] = useState(null);
+    const [programs, setPrograms] = useState([]);
+    const [domains, setDomains] = useState([]);
     const [form, setForm] = useState({
         date: new Date().toISOString().split('T')[0],
         slotType: 'morning_checkin',
         lateThresholdMinutes: 15,
         sessionDurationMinutes: 120,
+        programId: '',
+        domainId: '',
     });
     const navigate = useNavigate();
 
     useEffect(() => {
         fetchSessions();
         fetchStats();
+        client.get('/programs').then(res => setPrograms(res.data)).catch(() => {});
+        client.get('/domains').then(res => setDomains(res.data)).catch(() => {});
     }, []);
 
     const fetchSessions = async () => {
@@ -55,6 +61,9 @@ export default function AttendanceSessions() {
         return `${formatted} — ${slotLabel}`;
     };
 
+    const getProgramName = (id) => programs.find(p => p.id === id)?.name || id;
+    const getDomainName = (id) => domains.find(d => d.id === id)?.name || id;
+
     const handleCreate = async (e) => {
         e.preventDefault();
         if (!form.date) return toast.error('Please select a date');
@@ -64,7 +73,14 @@ export default function AttendanceSessions() {
             const res = await client.post('/attendance/sessions', { ...form, title });
             toast.success('Session created!');
             setShowModal(false);
-            setForm({ date: new Date().toISOString().split('T')[0], slotType: 'morning_checkin', lateThresholdMinutes: 15, sessionDurationMinutes: 120 });
+            setForm({
+                date: new Date().toISOString().split('T')[0],
+                slotType: 'morning_checkin',
+                lateThresholdMinutes: 15,
+                sessionDurationMinutes: 120,
+                programId: '',
+                domainId: '',
+            });
             navigate(`/admin/attendance/${res.data.id}/qr`);
         } catch (err) {
             toast.error(err.response?.data?.detail || 'Failed to create session');
@@ -228,11 +244,21 @@ export default function AttendanceSessions() {
                                             <span className="badge badge-closed">Ended</span>
                                         )}
                                     </div>
-                                    <div style={{ display: 'flex', gap: '16px', color: 'var(--text-secondary)', fontSize: '13px', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', gap: '16px', color: 'var(--text-secondary)', fontSize: '13px', flexWrap: 'wrap', alignItems: 'center' }}>
                                         <span>{session.slotLabel || '📋 Session'}</span>
                                         <span>📅 {formatDate(session.date)}</span>
                                         <span>🕐 {formatTime(session.sessionStart)}</span>
                                         <span>⏱️ Late after {session.lateThresholdMinutes}min</span>
+                                        {session.programId && (
+                                            <span style={{ background: 'rgba(124,108,240,0.1)', color: 'var(--accent-primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                                                🎓 {getProgramName(session.programId)}
+                                            </span>
+                                        )}
+                                        {session.domainId && (
+                                            <span style={{ background: 'rgba(78,168,222,0.1)', color: 'var(--accent-secondary)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                                                🌐 {getDomainName(session.domainId)}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
@@ -355,6 +381,52 @@ export default function AttendanceSessions() {
                                                 {slot.label}
                                             </button>
                                         ))}
+                                    </div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                    <div>
+                                        <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>Program (Optional)</label>
+                                        <select
+                                            value={form.programId}
+                                            onChange={(e) => setForm({ ...form, programId: e.target.value })}
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 12px',
+                                                borderRadius: '10px',
+                                                background: 'var(--bg-secondary)',
+                                                border: '1px solid var(--border)',
+                                                color: 'var(--text-primary)',
+                                                outline: 'none',
+                                                fontSize: '13px',
+                                            }}
+                                        >
+                                            <option value="">All Programs</option>
+                                            {programs.map(p => (
+                                                <option key={p.id} value={p.id}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>Subject/Domain (Optional)</label>
+                                        <select
+                                            value={form.domainId}
+                                            onChange={(e) => setForm({ ...form, domainId: e.target.value })}
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 12px',
+                                                borderRadius: '10px',
+                                                background: 'var(--bg-secondary)',
+                                                border: '1px solid var(--border)',
+                                                color: 'var(--text-primary)',
+                                                outline: 'none',
+                                                fontSize: '13px',
+                                            }}
+                                        >
+                                            <option value="">All Subjects/Domains</option>
+                                            {domains.map(d => (
+                                                <option key={d.id} value={d.id}>{d.name}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

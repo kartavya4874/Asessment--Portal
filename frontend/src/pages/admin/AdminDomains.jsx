@@ -378,7 +378,7 @@ export default function AdminDomains() {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                         <thead>
                                             <tr style={{ background: 'var(--bg-secondary)' }}>
-                                                {['Roll No', 'Name', 'Email', 'Profile Registered', 'Interest Level', 'Primary Goal', 'Enrolled Tracks', 'Action'].map(h => (
+                                                {['Roll No', 'Name', 'Email', 'Profile Registered', 'Interest Level', 'Primary Goal', 'Enrolled Tracks', ...(isSuperAdmin ? ['Action'] : [])].map(h => (
                                                     <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                                                 ))}
                                             </tr>
@@ -425,7 +425,7 @@ export default function AdminDomains() {
                                                         <button
                                                             onClick={() => setStudentModal(student)}
                                                             className="btn-secondary"
-                                                            style={{ padding: '6px 12px', fontSize: '12px' }}
+                                                            style={{ padding: '6px 12px', fontSize: '12px', display: isSuperAdmin ? 'inline-block' : 'none' }}
                                                         >
                                                             📝 Edit
                                                         </button>

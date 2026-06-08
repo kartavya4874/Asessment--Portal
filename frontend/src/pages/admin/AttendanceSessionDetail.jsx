@@ -11,9 +11,13 @@ export default function AttendanceSessionDetail() {
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState('present'); // 'present' | 'late' | 'absent'
     const [searchQuery, setSearchQuery] = useState('');
+    const [programs, setPrograms] = useState([]);
+    const [domains, setDomains] = useState([]);
 
     useEffect(() => {
         fetchSession();
+        client.get('/programs').then(res => setPrograms(res.data)).catch(() => {});
+        client.get('/domains').then(res => setDomains(res.data)).catch(() => {});
     }, [id]);
 
     const fetchSession = async () => {
@@ -48,6 +52,9 @@ export default function AttendanceSessionDetail() {
         const d = new Date(dateStr);
         return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     };
+
+    const getProgramName = (id) => programs.find(p => p.id === id)?.name || id;
+    const getDomainName = (id) => domains.find(d => d.id === id)?.name || id;
 
     if (loading) {
         return (
@@ -115,6 +122,20 @@ export default function AttendanceSessionDetail() {
                             <span>🕐 Started: {formatTime(session.sessionStart)}</span>
                             {session.sessionEnd && <span>🏁 Ended: {formatTime(session.sessionEnd)}</span>}
                         </div>
+                        {(session.programId || session.domainId) && (
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+                                {session.programId && (
+                                    <span style={{ background: 'rgba(124,108,240,0.1)', color: 'var(--accent-primary)', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
+                                        🎓 Program: {getProgramName(session.programId)}
+                                    </span>
+                                )}
+                                {session.domainId && (
+                                    <span style={{ background: 'rgba(78,168,222,0.1)', color: 'var(--accent-secondary)', padding: '4px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>
+                                        🌐 Subject/Domain: {getDomainName(session.domainId)}
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     <div style={{ display: 'flex', gap: '10px' }}>
