@@ -134,14 +134,14 @@ export default function StudentRegister() {
                                 <label style={labelStyle}>Specialization</label>
                                 <select name="specialization" value={form.specialization} onChange={handleChange} style={inputStyle} disabled={!selectedProgram}>
                                     <option value="">Select Specialization</option>
-                                    {selectedProgram?.specializations?.map(s => <option key={s} value={s}>{s}</option>)}
+                                    {Array.isArray(selectedProgram?.specializations) && selectedProgram.specializations.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </motion.div>
                             <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.4 }}>
                                 <label style={labelStyle}>Semester</label>
                                 <select name="year" value={form.year} onChange={handleChange} style={inputStyle} disabled={!selectedProgram}>
                                     <option value="">Select Semester</option>
-                                    {selectedProgram?.years?.map(y => <option key={y} value={y}>{y}</option>)}
+                                    {Array.isArray(selectedProgram?.years) && selectedProgram.years.map(y => <option key={y} value={y}>{y}</option>)}
                                 </select>
                             </motion.div>
                         </div>

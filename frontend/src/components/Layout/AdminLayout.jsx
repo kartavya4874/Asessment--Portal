@@ -29,7 +29,7 @@ export default function AdminLayout() {
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
 
-    const isSuperAdmin = user?.adminRole === 'super_admin' || user?.email === 'admin@geetauniversity.edu.in';
+    const isSuperAdmin = user?.email === 'admin@geetauniversity.edu.in';
     const navItems = baseNavItems.filter(item => !item.superAdminOnly || isSuperAdmin);
 
     const handleLogout = () => {

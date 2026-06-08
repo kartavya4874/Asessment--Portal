@@ -17,7 +17,7 @@ export default function Students() {
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     const { user } = useAuth();
-    const isSuperAdmin = user?.adminRole === 'super_admin' || user?.email === 'admin@geetauniversity.edu.in';
+    const isSuperAdmin = user?.email === 'admin@geetauniversity.edu.in';
 
     // Modal state
     const [showModal, setShowModal] = useState(false);

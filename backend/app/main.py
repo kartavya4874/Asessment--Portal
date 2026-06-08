@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
     scheduler = None  # Declare early so shutdown block can access it safely
     # Startup
     try:
-        print("🚀 Starting up AI Lab Assessment Portal...")
+        print("Starting up AI Lab Assessment Portal...")
         await connect_db()
         await setup_indexes()
         await seed_admins()
@@ -38,12 +38,12 @@ async def lifespan(app: FastAPI):
         scheduler.add_job(send_closing_reminders, 'interval', minutes=60)
         scheduler.add_job(flush_email_queue, 'interval', minutes=60)  # Flush pending email queue
         scheduler.start()
-        print("⏰ APScheduler started for background jobs.")
+        print("APScheduler started for background jobs.")
         
-        print("✨ Startup complete! Ready to serve requests.")
+        print("Startup complete! Ready to serve requests.")
     except Exception as e:
         import traceback
-        print(f"❌ CRITICAL: Application failed to start: {e}", flush=True)
+        print(f"CRITICAL: Application failed to start: {e}", flush=True)
         traceback.print_exc()
         # On Cloud Run, we want the process to exit if it can't connect to DB
         # so that it doesn't just sit there "running" but broken.
@@ -96,7 +96,7 @@ if settings.FRONTEND_URL:
             elif url not in origins:
                 origins.append(url)
 
-print(f"📡 CORS origins configured: {origins}")
+print(f"CORS origins configured: {origins}")
 
 app.add_middleware(
     CORSMiddleware,

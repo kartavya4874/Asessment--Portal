@@ -15,7 +15,7 @@ export default function Programs() {
     const [editingProgram, setEditingProgram] = useState(null);
     const [form, setForm] = useState({ name: '', years: '', specializations: '' });
     const { user } = useAuth();
-    const isSuperAdmin = user?.adminRole === 'super_admin' || user?.email === 'admin@geetauniversity.edu.in';
+    const isSuperAdmin = user?.email === 'admin@geetauniversity.edu.in';
 
     const fetchPrograms = async () => {
         try {
@@ -36,9 +36,9 @@ export default function Programs() {
     const handleEdit = (program) => {
         setEditingProgram(program);
         setForm({
-            name: program.name,
-            years: program.years.join(', '),
-            specializations: program.specializations.join(', '),
+            name: program.name || '',
+            years: Array.isArray(program.years) ? program.years.join(', ') : (program.years || ''),
+            specializations: Array.isArray(program.specializations) ? program.specializations.join(', ') : (program.specializations || ''),
         });
         setShowForm(true);
     };
@@ -49,8 +49,8 @@ export default function Programs() {
 
         const payload = {
             name: form.name.trim(),
-            years: form.years.split(',').map(s => s.trim()).filter(Boolean),
-            specializations: form.specializations.split(',').map(s => s.trim()).filter(Boolean),
+            years: String(form.years || '').split(',').map(s => s.trim()).filter(Boolean),
+            specializations: String(form.specializations || '').split(',').map(s => s.trim()).filter(Boolean),
         };
 
         try {

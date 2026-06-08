@@ -37,7 +37,7 @@ async def seed_admins():
         {"$set": {"adminRole": "instructor"}},
     )
     if demote_result.modified_count > 0:
-        print(f"🔒 Demoted {demote_result.modified_count} stale super_admin(s) to instructor")
+        print(f"Demoted {demote_result.modified_count} stale super_admin(s) to instructor")
 
     # ── 1. Seed the single super admin ─────────────────────────
     await _upsert_admin(
@@ -91,9 +91,9 @@ async def seed_default_domains():
                 }
             ]
             await db.domains.insert_many(default_domains)
-            print("🌱 Default subject/domain tracks seeded")
+            print("Default subject/domain tracks seeded")
     except Exception as e:
-        print(f"⚠️ Failed to seed default subject/domain tracks: {e}")
+        print(f"Failed to seed default subject/domain tracks: {e}")
 
 
 async def _upsert_admin(*, name: str, email: str, password: str, role: str):
@@ -112,7 +112,7 @@ async def _upsert_admin(*, name: str, email: str, password: str, role: str):
                 {"email": email},
                 {"$set": update_fields},
             )
-            print(f"✅ Admin verified: {email} (role: {existing.get('adminRole', role)})")
+            print(f"Admin verified: {email} (role: {existing.get('adminRole', role)})")
         else:
             await db.admins.insert_one({
                 "name": name,
@@ -121,6 +121,6 @@ async def _upsert_admin(*, name: str, email: str, password: str, role: str):
                 "adminRole": role,
                 "createdAt": datetime.now(timezone.utc),
             })
-            print(f"✅ Admin created: {email} (role: {role})")
+            print(f"Admin created: {email} (role: {role})")
     except Exception as e:
-        print(f"⚠️  Failed to seed admin {email}: {e}")
+        print(f"Failed to seed admin {email}: {e}")

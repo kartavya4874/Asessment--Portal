@@ -20,7 +20,7 @@ export default function AdminDashboard() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const { user } = useAuth();
-    const isSuperAdmin = user?.adminRole === 'super_admin' || user?.email === 'admin@geetauniversity.edu.in';
+    const isSuperAdmin = user?.email === 'admin@geetauniversity.edu.in';
 
     useEffect(() => {
         const fetchStats = async () => {

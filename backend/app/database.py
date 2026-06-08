@@ -29,7 +29,7 @@ domains_collection = db["domains"]
 async def connect_db():
     """Ping MongoDB to verify connection."""
     await client.admin.command("ping")
-    print(f"✅ Connected to MongoDB: {settings.DB_NAME}")
+    print(f"Connected to MongoDB: {settings.DB_NAME}")
 
 
 async def setup_indexes():
@@ -70,13 +70,13 @@ async def setup_indexes():
         await attendance_sessions_collection.create_index([("date", pymongo.DESCENDING)])
         await attendance_sessions_collection.create_index([("isActive", pymongo.ASCENDING)])
 
-        print("⚡ MongoDB indexes created/verified")
+        print("MongoDB indexes created/verified")
     except Exception as e:
-        print(f"⚠️ Failed to create MongoDB indexes: {e}")
+        print(f"Failed to create MongoDB indexes: {e}")
 
 
 async def close_db():
     """Close MongoDB client."""
     client.close()
-    print("🔌 MongoDB connection closed")
+    print("MongoDB connection closed")
 

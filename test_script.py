@@ -6,14 +6,16 @@ from datetime import datetime, timedelta, timezone
 base_url = "http://localhost:8000"
 
 print("Logging in as Admin...")
-resp = httpx.post(f"{base_url}/auth/admin/login", data={"username": "kartavya.baluja@geetauniversity.edu.in", "password": "Kartavya.Baluja@123"})
+resp = httpx.post(f"{base_url}/auth/admin/login", json={"email": "admin@geetauniversity.edu.in", "password": "Random@123"})
+print("Admin login response status:", resp.status_code)
+print("Admin login response text:", resp.text)
 admin_token = resp.json()
 
 print("Fetching programs...")
-resp = httpx.get(f"{base_url}/programs", headers={"Authorization": f"Bearer {admin_token['access_token']}"})
+resp = httpx.get(f"{base_url}/programs", headers={"Authorization": f"Bearer {admin_token['token']}"})
 programs = resp.json()
 if not programs:
-    resp = httpx.post(f"{base_url}/programs", json={"name": "Test Program", "description": "test"}, headers={"Authorization": f"Bearer {admin_token['access_token']}"})
+    resp = httpx.post(f"{base_url}/programs", json={"name": "Test Program", "years": ["1st Year", "2nd Year"], "specializations": ["CS", "IT"]}, headers={"Authorization": f"Bearer {admin_token['token']}"})
     program = resp.json()
 else:
     program = programs[0]
@@ -26,7 +28,7 @@ student_data = {"name": "Test Stu", "email": "stu@test.com", "password": "passwo
 resp = httpx.post(f"{base_url}/auth/student/register", json=student_data)
 # handle already registered
 print("Logging in as Student...")
-resp = httpx.post(f"{base_url}/auth/student/login", data={"username": "stu@test.com", "password": "password123"})
+resp = httpx.post(f"{base_url}/auth/student/login", json={"email": "stu@test.com", "password": "password123"})
 if resp.status_code != 200:
     print("Student login failed", resp.text)
     exit(1)
@@ -46,7 +48,7 @@ assessment_data = {
 }
 # Create assessment with form data
 form_data = {"data": json.dumps(assessment_data)}
-resp = httpx.post(f"{base_url}/assessments", data=form_data, headers={"Authorization": f"Bearer {admin_token['access_token']}"})
+resp = httpx.post(f"{base_url}/assessments", data=form_data, headers={"Authorization": f"Bearer {admin_token['token']}"})
 if resp.status_code != 201:
     print("Assessment creation failed", resp.text)
     exit(1)
@@ -59,11 +61,11 @@ submit_data = {
     "urls": "https://example.com",
     "textAnswer": "Here is my answer"
 }
-resp = httpx.post(f"{base_url}/submissions", data=submit_data, headers={"Authorization": f"Bearer {stu_token['access_token']}"})
+resp = httpx.post(f"{base_url}/submissions", data=submit_data, headers={"Authorization": f"Bearer {stu_token['token']}"})
 print(f"Submit Status: {resp.status_code}")
 print(f"Submit payload: {resp.json()}")
 
 print("Fetching submission...")
-resp = httpx.get(f"{base_url}/submissions/my", params={"assessmentId": assessment_id}, headers={"Authorization": f"Bearer {stu_token['access_token']}"})
+resp = httpx.get(f"{base_url}/submissions/my", params={"assessmentId": assessment_id}, headers={"Authorization": f"Bearer {stu_token['token']}"})
 print(f"Get Submission Status: {resp.status_code}")
 print(f"Get payload: {resp.json()}")
