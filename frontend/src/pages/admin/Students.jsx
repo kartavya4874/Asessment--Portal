@@ -173,7 +173,7 @@ export default function Students() {
                     </div>
                 ) : (
                     <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                        <div style={{ overflowX: 'auto' }}>
+                        <div className="table-responsive">
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                 <thead>
                                     <tr style={{ background: 'var(--bg-secondary)' }}>

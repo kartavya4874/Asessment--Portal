@@ -227,6 +227,7 @@ def generate_attendance_session_excel(
 
     # Present + Late records
     row_idx = 5
+    serial = 1
     for record in sorted(records, key=lambda r: str(r.get("rollNumber") or "")):
         status = record.get("status", "present")
         marked_at = record.get("markedAt", "")

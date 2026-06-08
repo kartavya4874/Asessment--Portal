@@ -131,6 +131,13 @@ async def enroll_domain(domain_id: str, student: dict = Depends(require_student)
             detail="Please register your domain profile preferences before enrolling"
         )
 
+    # Enforce maximum 1 domain track
+    if len(student_doc.get("enrolledSubjects", [])) >= 1 and domain_id not in student_doc.get("enrolledSubjects", []):
+        raise HTTPException(
+            status_code=400,
+            detail="You can only enroll in one subject/domain track. Please contact an administrator to change tracks."
+        )
+
     # Verify domain exists
     domain = await domains_collection.find_one({"_id": ObjectId(domain_id)})
     if not domain:

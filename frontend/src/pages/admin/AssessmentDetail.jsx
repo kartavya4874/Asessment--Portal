@@ -296,7 +296,7 @@ export default function AssessmentDetail() {
                         </div>
                     </div>
 
-                    <div style={{ overflowX: 'auto' }}>
+                    <div className="table-responsive">
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                             <thead>
                                 <tr style={{ background: 'var(--bg-secondary)' }}>

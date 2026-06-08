@@ -295,23 +295,20 @@ export default function StudentDomains() {
                                                         </p>
 
                                                         {isEnrolled ? (
-                                                            <motion.button
-                                                                onClick={() => handleDisenroll(domain.id)}
-                                                                className="btn-danger"
-                                                                style={{ width: '100%', padding: '10px', fontSize: '13px', background: 'transparent', color: 'var(--error)' }}
-                                                                whileHover={{ scale: 1.02 }}
-                                                            >
-                                                                Opt Out
-                                                            </motion.button>
+                                                            <div style={{ textAlign: 'center', padding: '10px', fontSize: '13px', color: 'var(--success)', fontWeight: 'bold' }}>
+                                                                Current Track
+                                                            </div>
                                                         ) : (
-                                                            <motion.button
-                                                                onClick={() => handleEnroll(domain.id)}
-                                                                className="btn-primary"
-                                                                style={{ width: '100%', padding: '10px', fontSize: '13px' }}
-                                                                whileHover={{ scale: 1.02 }}
-                                                            >
-                                                                Enroll Now
-                                                            </motion.button>
+                                                            !profile.enrolledSubjects?.length && (
+                                                                <motion.button
+                                                                    onClick={() => handleEnroll(domain.id)}
+                                                                    className="btn-primary"
+                                                                    style={{ width: '100%', padding: '10px', fontSize: '13px' }}
+                                                                    whileHover={{ scale: 1.02 }}
+                                                                >
+                                                                    Enroll Now
+                                                                </motion.button>
+                                                            )
                                                         )}
                                                     </motion.div>
                                                 </StaggerItem>

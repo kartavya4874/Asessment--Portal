@@ -541,30 +541,50 @@ a:hover {
   header.glass {
     flex-direction: column !important;
     align-items: stretch !important;
-    padding: 12px 16px !important;
-    gap: 12px !important;
+    padding: 16px 16px 0 !important;
+    gap: 16px !important;
   }
 
   header .header-brand-nav {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    gap: 12px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
   }
 
   header nav {
     margin-left: 0 !important;
     overflow-x: auto;
-    padding-bottom: 8px;
+    padding-bottom: 12px;
     width: 100%;
     -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    scrollbar-width: none; /* Hide scrollbar for cleaner look */
   }
 
   header nav::-webkit-scrollbar {
-    height: 4px;
+    display: none;
   }
 
   header .header-actions {
-    justify-content: space-between !important;
+    justify-content: flex-end !important;
     width: 100%;
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+    margin-bottom: 12px !important;
   }
+}
+
+/* Base Responsive Elements */
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }

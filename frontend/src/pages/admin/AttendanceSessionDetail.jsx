@@ -286,7 +286,7 @@ export default function AttendanceSessionDetail() {
                         </p>
                     </div>
                 ) : (
-                    <div style={{ overflowX: 'auto' }}>
+                    <div className="table-responsive">
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
                             <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
