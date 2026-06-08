@@ -14,6 +14,11 @@ export default function QRScanner() {
     const processingRef = useRef(false);
     const mountedRef = useRef(true);
 
+    // Zoom related states for students scanning from far/last benches
+    const [zoomSupported, setZoomSupported] = useState(false);
+    const [zoomValue, setZoomValue] = useState(1);
+    const [zoomCapabilities, setZoomCapabilities] = useState({ min: 1, max: 5, step: 0.1 });
+
     useEffect(() => {
         mountedRef.current = true;
         return () => {
@@ -30,6 +35,9 @@ export default function QRScanner() {
                 s.stop().then(() => s.clear()).catch(() => {});
             }
         } catch (e) { /* ignore */ }
+        if (mountedRef.current) {
+            setZoomSupported(false);
+        }
     };
 
     const startScanner = useCallback(async () => {
@@ -108,7 +116,27 @@ export default function QRScanner() {
                 () => { /* no QR found in frame — ignore */ }
             );
 
-            if (mountedRef.current) setScanning(true);
+            if (mountedRef.current) {
+                setScanning(true);
+                // Attempt to detect camera capabilities (specifically zoom)
+                try {
+                    const capabilities = scanner.getRunningTrackCapabilities();
+                    if (capabilities && capabilities.zoom) {
+                        setZoomCapabilities({
+                            min: capabilities.zoom.min || 1,
+                            max: capabilities.zoom.max || 5,
+                            step: capabilities.zoom.step || 0.1,
+                        });
+                        setZoomValue(capabilities.zoom.min || 1);
+                        setZoomSupported(true);
+                    } else {
+                        setZoomSupported(false);
+                    }
+                } catch (zoomErr) {
+                    console.warn('Failed to get camera zoom capabilities:', zoomErr);
+                    setZoomSupported(false);
+                }
+            }
         } catch (err) {
             console.error('Camera error:', err);
             if (mountedRef.current) {
@@ -126,6 +154,20 @@ export default function QRScanner() {
         }
     }, []);
 
+    const applyZoom = useCallback(async (val) => {
+        const parsedVal = Math.max(zoomCapabilities.min, Math.min(zoomCapabilities.max, parseFloat(val)));
+        setZoomValue(parsedVal);
+        if (scannerRef.current && zoomSupported) {
+            try {
+                await scannerRef.current.applyVideoConstraints({
+                    advanced: [{ zoom: parsedVal }]
+                });
+            } catch (err) {
+                console.error('Failed to apply zoom constraints:', err);
+            }
+        }
+    }, [zoomSupported, zoomCapabilities]);
+
     const stopScanner = useCallback(async () => {
         try {
             if (scannerRef.current) {
@@ -134,7 +176,10 @@ export default function QRScanner() {
                 scannerRef.current = null;
             }
         } catch (e) { /* ignore */ }
-        if (mountedRef.current) setScanning(false);
+        if (mountedRef.current) {
+            setScanning(false);
+            setZoomSupported(false);
+        }
     }, []);
 
     const statusConfig = {
@@ -240,6 +285,155 @@ export default function QRScanner() {
                                 display: scanning ? 'block' : 'none',
                             }}
                         />
+
+                        {/* Camera Zoom Controls for far-bench students */}
+                        {scanning && zoomSupported && (
+                            <div style={{
+                                width: '100%',
+                                maxWidth: '320px',
+                                margin: '0 auto 20px',
+                                padding: '16px',
+                                borderRadius: '16px',
+                                background: 'rgba(26, 26, 46, 0.4)',
+                                border: '1px solid var(--border)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '12px'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                                    <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        🔍 Camera Zoom
+                                    </span>
+                                    <span style={{ 
+                                        background: 'rgba(124, 108, 240, 0.15)', 
+                                        color: 'var(--accent-primary)', 
+                                        padding: '2px 8px', 
+                                        borderRadius: '20px', 
+                                        fontSize: '11px',
+                                        fontWeight: 700 
+                                    }}>
+                                        {zoomValue.toFixed(1)}x
+                                    </span>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <motion.button
+                                        type="button"
+                                        onClick={() => applyZoom(zoomValue - (zoomCapabilities.step * 2 || 0.2))}
+                                        disabled={zoomValue <= zoomCapabilities.min}
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        style={{
+                                            width: '32px',
+                                            height: '32px',
+                                            borderRadius: '8px',
+                                            background: 'var(--bg-secondary)',
+                                            border: '1px solid var(--border)',
+                                            color: 'var(--text-primary)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: zoomValue <= zoomCapabilities.min ? 'not-allowed' : 'pointer',
+                                            opacity: zoomValue <= zoomCapabilities.min ? 0.5 : 1,
+                                        }}
+                                    >
+                                        ➖
+                                    </motion.button>
+                                    
+                                    <input
+                                        type="range"
+                                        min={zoomCapabilities.min}
+                                        max={zoomCapabilities.max}
+                                        step={zoomCapabilities.step}
+                                        value={zoomValue}
+                                        onChange={(e) => applyZoom(e.target.value)}
+                                        style={{
+                                            flex: 1,
+                                            height: '6px',
+                                            borderRadius: '3px',
+                                            background: 'var(--border)',
+                                            outline: 'none',
+                                            cursor: 'pointer',
+                                            accentColor: 'var(--accent-primary)',
+                                        }}
+                                    />
+
+                                    <motion.button
+                                        type="button"
+                                        onClick={() => applyZoom(zoomValue + (zoomCapabilities.step * 2 || 0.2))}
+                                        disabled={zoomValue >= zoomCapabilities.max}
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.9 }}
+                                        style={{
+                                            width: '32px',
+                                            height: '32px',
+                                            borderRadius: '8px',
+                                            background: 'var(--bg-secondary)',
+                                            border: '1px solid var(--border)',
+                                            color: 'var(--text-primary)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: zoomValue >= zoomCapabilities.max ? 'not-allowed' : 'pointer',
+                                            opacity: zoomValue >= zoomCapabilities.max ? 0.5 : 1,
+                                        }}
+                                    >
+                                        ➕
+                                    </motion.button>
+                                </div>
+
+                                {/* Quick Zoom Presets */}
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                    {[1, 2, 3, 4].map((preset) => {
+                                        if (preset >= zoomCapabilities.min && preset <= zoomCapabilities.max) {
+                                            const isActive = Math.abs(zoomValue - preset) < 0.15;
+                                            return (
+                                                <motion.button
+                                                    key={preset}
+                                                    type="button"
+                                                    onClick={() => applyZoom(preset)}
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    style={{
+                                                        padding: '6px 10px',
+                                                        fontSize: '11px',
+                                                        fontWeight: 600,
+                                                        borderRadius: '6px',
+                                                        background: isActive ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                                                        border: `1px solid ${isActive ? 'var(--accent-primary)' : 'var(--border)'}`,
+                                                        color: isActive ? '#fff' : 'var(--text-secondary)',
+                                                        transition: 'all 0.2s',
+                                                    }}
+                                                >
+                                                    {preset}x
+                                                </motion.button>
+                                            );
+                                        }
+                                        return null;
+                                    })}
+                                    {zoomCapabilities.max > 4 && (
+                                        <motion.button
+                                            type="button"
+                                            onClick={() => applyZoom(zoomCapabilities.max)}
+                                            whileHover={{ scale: 1.05 }}
+                                            whileTap={{ scale: 0.95 }}
+                                            style={{
+                                                padding: '6px 10px',
+                                                fontSize: '11px',
+                                                fontWeight: 600,
+                                                borderRadius: '6px',
+                                                background: Math.abs(zoomValue - zoomCapabilities.max) < 0.15 ? 'var(--accent-primary)' : 'var(--bg-secondary)',
+                                                border: `1px solid ${Math.abs(zoomValue - zoomCapabilities.max) < 0.15 ? 'var(--accent-primary)' : 'var(--border)'}`,
+                                                color: Math.abs(zoomValue - zoomCapabilities.max) < 0.15 ? '#fff' : 'var(--text-secondary)',
+                                                transition: 'all 0.2s',
+                                            }}
+                                        >
+                                            Max ({zoomCapabilities.max.toFixed(0)}x)
+                                        </motion.button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Camera Error */}
                         {cameraError && (
