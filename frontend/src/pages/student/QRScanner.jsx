@@ -118,24 +118,27 @@ export default function QRScanner() {
 
             if (mountedRef.current) {
                 setScanning(true);
-                // Attempt to detect camera capabilities (specifically zoom)
-                try {
-                    const capabilities = scanner.getRunningTrackCapabilities();
-                    if (capabilities && capabilities.zoom) {
-                        setZoomCapabilities({
-                            min: capabilities.zoom.min || 1,
-                            max: capabilities.zoom.max || 5,
-                            step: capabilities.zoom.step || 0.1,
-                        });
-                        setZoomValue(capabilities.zoom.min || 1);
-                        setZoomSupported(true);
-                    } else {
+                // Attempt to detect camera capabilities (specifically zoom) after a short delay to ensure stream stability
+                setTimeout(() => {
+                    if (!mountedRef.current || !scannerRef.current) return;
+                    try {
+                        const capabilities = scannerRef.current.getRunningTrackCapabilities();
+                        if (capabilities && capabilities.zoom) {
+                            setZoomCapabilities({
+                                min: capabilities.zoom.min || 1,
+                                max: capabilities.zoom.max || 5,
+                                step: capabilities.zoom.step || 0.1,
+                            });
+                            setZoomValue(capabilities.zoom.min || 1);
+                            setZoomSupported(true);
+                        } else {
+                            setZoomSupported(false);
+                        }
+                    } catch (zoomErr) {
+                        console.warn('Failed to get camera zoom capabilities:', zoomErr);
                         setZoomSupported(false);
                     }
-                } catch (zoomErr) {
-                    console.warn('Failed to get camera zoom capabilities:', zoomErr);
-                    setZoomSupported(false);
-                }
+                }, 250);
             }
         } catch (err) {
             console.error('Camera error:', err);

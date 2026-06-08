@@ -643,14 +643,18 @@ async def export_session_excel(session_id: str, admin=Depends(require_admin)):
     # Get all records
     records = []
     async for r in attendance_records_collection.find({"sessionId": session_id}).sort("markedAt", 1):
-        student = await students_collection.find_one({"_id": ObjectId(r["studentId"])})
+        student = None
+        try:
+            student = await students_collection.find_one({"_id": ObjectId(r["studentId"])})
+        except Exception:
+            pass
         records.append({
             "studentId": r["studentId"],
-            "studentName": student["name"] if student else "Unknown",
-            "rollNumber": student["rollNumber"] if student else "N/A",
-            "email": student["email"] if student else "N/A",
+            "studentName": student.get("name") if student else "Unknown",
+            "rollNumber": student.get("rollNumber") if student else "N/A",
+            "email": student.get("email") if student else "N/A",
             "status": r["status"],
-            "markedAt": r["markedAt"].isoformat(),
+            "markedAt": r["markedAt"].isoformat() if hasattr(r["markedAt"], "isoformat") else str(r["markedAt"]),
         })
 
     # Build session student filter
@@ -669,9 +673,9 @@ async def export_session_excel(session_id: str, admin=Depends(require_admin)):
         if sid not in attended_ids:
             absent_students.append({
                 "studentId": sid,
-                "studentName": st["name"],
-                "rollNumber": st["rollNumber"],
-                "email": st["email"],
+                "studentName": st.get("name") or "Unknown",
+                "rollNumber": st.get("rollNumber") or "N/A",
+                "email": st.get("email") or "N/A",
             })
 
     session_date = session["date"].strftime("%d %b %Y")
@@ -707,14 +711,18 @@ async def export_all_attendance_excel(admin=Depends(require_admin)):
         sid = str(s["_id"])
         records = []
         async for r in attendance_records_collection.find({"sessionId": sid}).sort("markedAt", 1):
-            student = await students_collection.find_one({"_id": ObjectId(r["studentId"])})
+            student = None
+            try:
+                student = await students_collection.find_one({"_id": ObjectId(r["studentId"])})
+            except Exception:
+                pass
             records.append({
                 "studentId": r["studentId"],
-                "studentName": student["name"] if student else "Unknown",
-                "rollNumber": student["rollNumber"] if student else "N/A",
-                "email": student["email"] if student else "N/A",
+                "studentName": student.get("name") if student else "Unknown",
+                "rollNumber": student.get("rollNumber") if student else "N/A",
+                "email": student.get("email") if student else "N/A",
                 "status": r["status"],
-                "markedAt": r["markedAt"].isoformat(),
+                "markedAt": r["markedAt"].isoformat() if hasattr(r["markedAt"], "isoformat") else str(r["markedAt"]),
             })
         sessions_data.append({
             "sessionId": sid,
@@ -730,9 +738,9 @@ async def export_all_attendance_excel(admin=Depends(require_admin)):
     async for st in students_collection.find(student_filter).sort("rollNumber", 1):
         all_students.append({
             "id": str(st["_id"]),
-            "rollNumber": st["rollNumber"],
-            "name": st["name"],
-            "email": st["email"],
+            "rollNumber": st.get("rollNumber") or "N/A",
+            "name": st.get("name") or "Unknown",
+            "email": st.get("email") or "N/A",
         })
 
     excel_buffer = generate_attendance_combined_excel(

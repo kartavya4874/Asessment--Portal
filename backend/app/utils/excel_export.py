@@ -227,17 +227,24 @@ def generate_attendance_session_excel(
 
     # Present + Late records
     row_idx = 5
-    serial = 1
-    for record in sorted(records, key=lambda r: r.get("rollNumber", "")):
+    for record in sorted(records, key=lambda r: str(r.get("rollNumber") or "")):
         status = record.get("status", "present")
         marked_at = record.get("markedAt", "")
-        if isinstance(marked_at, str) and "T" in marked_at:
-            try:
-                from datetime import datetime as dt
-                t = dt.fromisoformat(marked_at.replace("Z", "+00:00"))
-                marked_at = t.strftime("%I:%M:%S %p")
-            except Exception:
-                pass
+        if marked_at:
+            if hasattr(marked_at, "strftime"):
+                marked_at = marked_at.strftime("%I:%M:%S %p")
+            elif isinstance(marked_at, str):
+                if "T" in marked_at:
+                    try:
+                        from datetime import datetime as dt
+                        t = dt.fromisoformat(marked_at.replace("Z", "+00:00"))
+                        marked_at = t.strftime("%I:%M:%S %p")
+                    except Exception:
+                        pass
+                else:
+                    marked_at = str(marked_at)
+            else:
+                marked_at = str(marked_at)
 
         values = [
             serial,
@@ -245,7 +252,7 @@ def generate_attendance_session_excel(
             record.get("studentName", ""),
             record.get("email", ""),
             "✅ Present" if status == "present" else "⏰ Late",
-            marked_at,
+            marked_at or "—",
         ]
         fill = _get_status_fill(status)
         for col_idx, value in enumerate(values, 1):
@@ -260,7 +267,7 @@ def generate_attendance_session_excel(
     # Absent students
     if absent_students:
         row_idx += 1  # Blank separator
-        for student in sorted(absent_students, key=lambda s: s.get("rollNumber", "")):
+        for student in sorted(absent_students, key=lambda s: str(s.get("rollNumber") or "")):
             values = [
                 serial,
                 student.get("rollNumber", ""),
@@ -329,7 +336,7 @@ def generate_attendance_combined_excel(
         session_records_map[sid] = record_map
 
     # One row per student
-    sorted_students = sorted(all_students, key=lambda s: s.get("rollNumber", ""))
+    sorted_students = sorted(all_students, key=lambda s: str(s.get("rollNumber") or ""))
     for row_offset, student in enumerate(sorted_students):
         row = row_offset + 2
         st_id = student.get("id", student.get("studentId", ""))
@@ -397,15 +404,18 @@ def generate_attendance_combined_excel(
             for r in s.get("records", []):
                 if r.get("studentId") == st_id:
                     raw = r.get("markedAt", "")
-                    if isinstance(raw, str) and "T" in raw:
-                        try:
-                            from datetime import datetime as dt
-                            t = dt.fromisoformat(raw.replace("Z", "+00:00"))
-                            marked_at = t.strftime("%I:%M:%S %p")
-                        except Exception:
-                            marked_at = raw
-                    else:
-                        marked_at = str(raw)
+                    if raw:
+                        if hasattr(raw, "strftime"):
+                            marked_at = raw.strftime("%I:%M:%S %p")
+                        elif isinstance(raw, str) and "T" in raw:
+                            try:
+                                from datetime import datetime as dt
+                                t = dt.fromisoformat(raw.replace("Z", "+00:00"))
+                                marked_at = t.strftime("%I:%M:%S %p")
+                            except Exception:
+                                marked_at = raw
+                        else:
+                            marked_at = str(raw)
                     break
 
             status_label = "✅ Present" if status == "present" else "⏰ Late" if status == "late" else "❌ Absent"
