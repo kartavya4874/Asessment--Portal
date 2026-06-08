@@ -21,13 +21,10 @@ def program_doc_to_response(doc: dict) -> dict:
 
 @router.get("", response_model=list)
 async def list_programs(admin: dict = Depends(require_admin)):
-    scoped_ids = await get_scoped_program_ids(admin)
-    query = {}
-    if scoped_ids is not None:
-        query["_id"] = {"$in": [ObjectId(pid) for pid in scoped_ids]}
-
+    # All admins (super_admin + instructors) can see all programs
+    # Only creation/edit/delete is restricted to super_admin
     programs = []
-    async for doc in programs_collection.find(query):
+    async for doc in programs_collection.find({}):
         programs.append(program_doc_to_response(doc))
     return programs
 

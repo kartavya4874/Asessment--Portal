@@ -1,116 +1,140 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Html5Qrcode } from 'html5-qrcode';
 import client from '../../api/client';
 import toast from 'react-hot-toast';
 
 export default function QRScanner() {
     const navigate = useNavigate();
     const [scanning, setScanning] = useState(false);
-    const [result, setResult] = useState(null); // null | { status, data }
+    const [result, setResult] = useState(null);
     const [errorMessage, setErrorMessage] = useState('');
     const [cameraError, setCameraError] = useState('');
     const scannerRef = useRef(null);
     const processingRef = useRef(false);
+    const mountedRef = useRef(true);
 
-    const startScanner = async () => {
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+            stopScannerSilent();
+        };
+    }, []);
+
+    const stopScannerSilent = () => {
+        try {
+            if (scannerRef.current) {
+                const s = scannerRef.current;
+                scannerRef.current = null;
+                s.stop().then(() => s.clear()).catch(() => {});
+            }
+        } catch (e) { /* ignore */ }
+    };
+
+    const startScanner = useCallback(async () => {
         setCameraError('');
         setResult(null);
         setErrorMessage('');
         processingRef.current = false;
 
+        // Dynamically import to avoid SSR issues
+        const { Html5Qrcode } = await import('html5-qrcode');
+
         try {
-            const scanner = new Html5Qrcode('qr-reader');
+            // Check if camera is available
+            const devices = await Html5Qrcode.getCameras();
+            if (!devices || devices.length === 0) {
+                setCameraError('No camera found on this device. Please use a device with a camera.');
+                return;
+            }
+
+            const scanner = new Html5Qrcode('qr-reader-container');
             scannerRef.current = scanner;
+
+            const config = {
+                fps: 10,
+                qrbox: (viewfinderWidth, viewfinderHeight) => {
+                    const size = Math.min(viewfinderWidth, viewfinderHeight) * 0.7;
+                    return { width: Math.floor(size), height: Math.floor(size) };
+                },
+                aspectRatio: 1.0,
+                disableFlip: false,
+            };
 
             await scanner.start(
                 { facingMode: 'environment' },
-                {
-                    fps: 10,
-                    qrbox: { width: 250, height: 250 },
-                    aspectRatio: 1.0,
-                },
+                config,
                 async (decodedText) => {
                     if (processingRef.current) return;
                     processingRef.current = true;
 
-                    // Parse the QR URL to extract session + token
                     try {
                         const url = new URL(decodedText);
                         const sessionId = url.searchParams.get('session');
                         const qrToken = url.searchParams.get('token');
 
                         if (!sessionId || !qrToken) {
-                            setErrorMessage('Invalid QR code format. Not an attendance QR.');
-                            setResult({ status: 'error' });
-                            await stopScanner();
+                            if (mountedRef.current) {
+                                setErrorMessage('Invalid QR code format. Not an attendance QR.');
+                                setResult({ status: 'error' });
+                            }
+                            stopScannerSilent();
                             return;
                         }
 
-                        // Mark attendance via API
                         try {
-                            const res = await client.post('/attendance/mark', {
-                                sessionId,
-                                qrToken,
-                            });
-                            setResult({ status: 'success', data: res.data });
-                            toast.success('Attendance marked! ✅');
+                            const res = await client.post('/attendance/mark', { sessionId, qrToken });
+                            if (mountedRef.current) {
+                                setResult({ status: 'success', data: res.data });
+                                toast.success('Attendance marked! ✅');
+                            }
                         } catch (err) {
-                            const detail = err.response?.data?.detail || 'Failed to mark attendance';
-                            setErrorMessage(detail);
-                            if (detail.toLowerCase().includes('already')) {
-                                setResult({ status: 'already' });
-                            } else {
-                                setResult({ status: 'error' });
+                            if (mountedRef.current) {
+                                const detail = err.response?.data?.detail || 'Failed to mark attendance';
+                                setErrorMessage(detail);
+                                setResult({ status: detail.toLowerCase().includes('already') ? 'already' : 'error' });
                             }
                         }
-                        await stopScanner();
+                        stopScannerSilent();
                     } catch (e) {
-                        // Not a valid URL — might be a non-attendance QR
-                        setErrorMessage('This QR code is not a valid attendance code.');
-                        setResult({ status: 'error' });
-                        await stopScanner();
+                        if (mountedRef.current) {
+                            setErrorMessage('This QR code is not a valid attendance code.');
+                            setResult({ status: 'error' });
+                        }
+                        stopScannerSilent();
                     }
                 },
-                () => {
-                    // QR scan error (no code found in frame) — ignore silently
-                }
+                () => { /* no QR found in frame — ignore */ }
             );
-            setScanning(true);
+
+            if (mountedRef.current) setScanning(true);
         } catch (err) {
             console.error('Camera error:', err);
-            setCameraError(
-                typeof err === 'string'
-                    ? err
-                    : err?.message || 'Unable to access camera. Please allow camera permissions.'
-            );
+            if (mountedRef.current) {
+                const msg = typeof err === 'string' ? err : (err?.message || '');
+                if (msg.includes('NotAllowedError') || msg.includes('Permission')) {
+                    setCameraError('Camera permission denied. Please allow camera access in your browser settings and try again.');
+                } else if (msg.includes('NotFoundError') || msg.includes('Requested device not found')) {
+                    setCameraError('No camera found. Please use a device with a camera.');
+                } else if (msg.includes('NotReadableError') || msg.includes('Could not start')) {
+                    setCameraError('Camera is being used by another app. Close other camera apps and try again.');
+                } else {
+                    setCameraError(msg || 'Unable to access camera. Please allow camera permissions in your browser settings.');
+                }
+            }
         }
-    };
+    }, []);
 
-    const stopScanner = async () => {
+    const stopScanner = useCallback(async () => {
         try {
             if (scannerRef.current) {
                 await scannerRef.current.stop();
                 scannerRef.current.clear();
                 scannerRef.current = null;
             }
-        } catch (e) {
-            // ignore
-        }
-        setScanning(false);
-    };
-
-    // Cleanup on unmount
-    useEffect(() => {
-        return () => {
-            if (scannerRef.current) {
-                try {
-                    scannerRef.current.stop();
-                    scannerRef.current.clear();
-                } catch (e) { /* ignore */ }
-            }
-        };
+        } catch (e) { /* ignore */ }
+        if (mountedRef.current) setScanning(false);
     }, []);
 
     const statusConfig = {
@@ -180,34 +204,42 @@ export default function QRScanner() {
                             textAlign: 'center',
                         }}
                     >
-                        {/* Scanner viewport */}
-                        <div
-                            id="qr-reader"
-                            style={{
+                        {/* Placeholder when not scanning */}
+                        {!scanning && !cameraError && (
+                            <div style={{
                                 width: '100%',
                                 maxWidth: '320px',
                                 margin: '0 auto 20px',
                                 borderRadius: '16px',
-                                overflow: 'hidden',
                                 background: 'var(--bg-secondary)',
-                                border: scanning ? '2px solid var(--accent-primary)' : '2px solid var(--border)',
-                                minHeight: scanning ? 'auto' : '280px',
+                                border: '2px solid var(--border)',
+                                minHeight: '280px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                position: 'relative',
-                                transition: 'border-color 0.3s',
-                            }}
-                        >
-                            {!scanning && !cameraError && (
+                            }}>
                                 <div style={{ padding: '40px', textAlign: 'center' }}>
                                     <div style={{ fontSize: '64px', marginBottom: '16px', opacity: 0.6 }}>📷</div>
                                     <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
                                         Tap the button below to open the camera
                                     </p>
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
+
+                        {/* Scanner container — html5-qrcode renders its video here */}
+                        <div
+                            id="qr-reader-container"
+                            style={{
+                                width: '100%',
+                                maxWidth: '320px',
+                                margin: scanning ? '0 auto 20px' : '0',
+                                borderRadius: scanning ? '16px' : '0',
+                                overflow: scanning ? 'hidden' : 'visible',
+                                border: scanning ? '2px solid var(--accent-primary)' : 'none',
+                                display: scanning ? 'block' : 'none',
+                            }}
+                        />
 
                         {/* Camera Error */}
                         {cameraError && (
@@ -222,6 +254,7 @@ export default function QRScanner() {
                                     marginBottom: '16px',
                                     fontSize: '13px',
                                     color: 'var(--error)',
+                                    lineHeight: 1.6,
                                 }}
                             >
                                 ⚠️ {cameraError}
@@ -319,83 +352,46 @@ export default function QRScanner() {
                                 overflow: 'hidden',
                             }}
                         >
-                            {/* Background glow */}
                             <div style={{
-                                position: 'absolute',
-                                inset: 0,
+                                position: 'absolute', inset: 0,
                                 background: `radial-gradient(circle at 50% 30%, ${statusConfig[result.status]?.bg} 0%, transparent 70%)`,
                                 pointerEvents: 'none',
                             }} />
 
-                            {/* Status Icon */}
                             <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
                                 style={{
-                                    width: '80px',
-                                    height: '80px',
-                                    borderRadius: '20px',
+                                    width: '80px', height: '80px', borderRadius: '20px',
                                     background: statusConfig[result.status]?.bg,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '40px',
-                                    margin: '0 auto 20px',
-                                    position: 'relative',
-                                    zIndex: 1,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '40px', margin: '0 auto 20px', position: 'relative', zIndex: 1,
                                 }}
                             >
                                 {statusConfig[result.status]?.icon}
                             </motion.div>
 
                             <motion.h2
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.3 }}
-                                style={{
-                                    fontSize: '22px',
-                                    fontWeight: 800,
-                                    color: statusConfig[result.status]?.color,
-                                    marginBottom: '8px',
-                                    position: 'relative',
-                                    zIndex: 1,
-                                }}
+                                style={{ fontSize: '22px', fontWeight: 800, color: statusConfig[result.status]?.color, marginBottom: '8px', position: 'relative', zIndex: 1 }}
                             >
                                 {statusConfig[result.status]?.title}
                             </motion.h2>
 
                             <motion.p
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                                 transition={{ delay: 0.4 }}
-                                style={{
-                                    color: 'var(--text-secondary)',
-                                    fontSize: '14px',
-                                    lineHeight: 1.6,
-                                    marginBottom: '8px',
-                                    position: 'relative',
-                                    zIndex: 1,
-                                }}
+                                style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.6, marginBottom: '8px', position: 'relative', zIndex: 1 }}
                             >
                                 {statusConfig[result.status]?.subtitle}
                             </motion.p>
 
-                            {/* Time info for success */}
                             {result.status === 'success' && result.data && (
                                 <motion.div
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.5 }}
-                                    style={{
-                                        marginTop: '16px',
-                                        padding: '12px 16px',
-                                        borderRadius: '12px',
-                                        background: 'var(--bg-secondary)',
-                                        border: '1px solid var(--border)',
-                                        position: 'relative',
-                                        zIndex: 1,
-                                    }}
+                                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+                                    style={{ marginTop: '16px', padding: '12px 16px', borderRadius: '12px', background: 'var(--bg-secondary)', border: '1px solid var(--border)', position: 'relative', zIndex: 1 }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
                                         <span style={{ color: 'var(--text-secondary)' }}>Name</span>
@@ -416,23 +412,13 @@ export default function QRScanner() {
                                 </motion.div>
                             )}
 
-                            {/* Actions */}
                             <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.6 }}
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
                                 style={{ marginTop: '24px', position: 'relative', zIndex: 1, display: 'flex', gap: '12px', flexDirection: 'column' }}
                             >
                                 {result.status === 'error' && (
-                                    <motion.button
-                                        className="btn-primary"
-                                        whileHover={{ scale: 1.03 }}
-                                        whileTap={{ scale: 0.97 }}
-                                        onClick={() => {
-                                            setResult(null);
-                                            setErrorMessage('');
-                                            setCameraError('');
-                                        }}
+                                    <motion.button className="btn-primary" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                                        onClick={() => { setResult(null); setErrorMessage(''); setCameraError(''); }}
                                         style={{ width: '100%' }}
                                     >
                                         🔄 Try Again
@@ -440,8 +426,7 @@ export default function QRScanner() {
                                 )}
                                 <motion.button
                                     className={result.status === 'error' ? 'btn-secondary' : 'btn-primary'}
-                                    whileHover={{ scale: 1.03 }}
-                                    whileTap={{ scale: 0.97 }}
+                                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
                                     onClick={() => navigate('/student/attendance')}
                                     style={{ width: '100%' }}
                                 >
