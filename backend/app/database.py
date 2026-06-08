@@ -62,6 +62,9 @@ async def setup_indexes():
         await attendance_records_collection.create_index([("studentId", pymongo.ASCENDING)])
         await attendance_records_collection.create_index([("markedAt", pymongo.DESCENDING)])
 
+        # Admins: unique email
+        await admins_collection.create_index([("email", pymongo.ASCENDING)], unique=True)
+
         # Attendance sessions
         await attendance_sessions_collection.create_index([("date", pymongo.DESCENDING)])
         await attendance_sessions_collection.create_index([("isActive", pymongo.ASCENDING)])

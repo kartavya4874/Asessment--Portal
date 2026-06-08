@@ -13,6 +13,7 @@ _bucket = None
 # In-memory signed URL cache: {blob_name: (url, expiry_timestamp)}
 _signed_url_cache = {}
 _CACHE_TTL_SECONDS = 30 * 60  # Cache for 30 minutes (URLs expire in 60 min)
+_MAX_CACHE_SIZE = 1000  # Evict oldest entries beyond this limit
 
 
 def _get_bucket():
@@ -102,6 +103,19 @@ async def generate_signed_url(
 
     # Cache the URL
     _signed_url_cache[blob_name] = (url, now + _CACHE_TTL_SECONDS)
+
+    # Evict expired entries and enforce max size
+    if len(_signed_url_cache) > _MAX_CACHE_SIZE:
+        # Remove expired entries first
+        expired = [k for k, (_, exp) in _signed_url_cache.items() if exp <= now]
+        for k in expired:
+            del _signed_url_cache[k]
+        # If still over limit, remove oldest entries
+        if len(_signed_url_cache) > _MAX_CACHE_SIZE:
+            sorted_keys = sorted(_signed_url_cache, key=lambda k: _signed_url_cache[k][1])
+            for k in sorted_keys[:len(_signed_url_cache) - _MAX_CACHE_SIZE]:
+                del _signed_url_cache[k]
+
     return url
 
 

@@ -90,10 +90,8 @@ async def list_assessments(
             else:
                 query["programId"] = {"$in": scoped_ids}
 
-    print(f"DEBUG: list_assessments query: {query}")
     docs = await assessments_collection.find(query).sort("createdAt", -1).to_list(length=None)
     assessments = list(await asyncio.gather(*[assessment_doc_to_response(doc) for doc in docs]))
-    print(f"DEBUG: Found {len(assessments)} assessments")
     return assessments
 
 
@@ -109,11 +107,9 @@ async def get_assessment(
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_assessment(data: AssessmentCreate, admin: dict = Depends(require_admin)):
-    print(f"DEBUG: create_assessment data: {data}")
     # Verify program exists
     program = await programs_collection.find_one({"_id": ObjectId(data.programId)})
     if not program:
-        print(f"DEBUG: create_assessment failed - Invalid program: {data.programId}")
         raise HTTPException(status_code=400, detail="Invalid program")
 
     # Ownership check: instructors can only create assessments in their programs
@@ -122,7 +118,6 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
         raise HTTPException(status_code=403, detail="You do not have access to this program")
 
     if data.deadline <= data.startAt:
-        print(f"DEBUG: create_assessment failed - Invalid timeline")
         raise HTTPException(status_code=400, detail="Deadline must be after start time")
 
     now = datetime.now(timezone.utc)
@@ -190,7 +185,6 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
                     )
                 )
 
-    print(f"DEBUG: create_assessment success - ID: {result.inserted_id}")
     return await assessment_doc_to_response(assessment_doc)
 
 
@@ -228,9 +222,16 @@ async def update_assessment(
 
 @router.delete("/{assessment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_assessment(assessment_id: str, admin: dict = Depends(require_admin)):
-    result = await assessments_collection.delete_one({"_id": ObjectId(assessment_id)})
-    if result.deleted_count == 0:
+    doc = await assessments_collection.find_one({"_id": ObjectId(assessment_id)})
+    if not doc:
         raise HTTPException(status_code=404, detail="Assessment not found")
+
+    # Ownership check
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None and doc.get("programId") not in scoped_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this assessment")
+
+    await assessments_collection.delete_one({"_id": ObjectId(assessment_id)})
         
     # Cascade delete all submissions for this assessment so they don't orphan
     await submissions_collection.delete_many({"assessmentId": assessment_id})
@@ -251,6 +252,11 @@ async def upload_assessment_files(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Assessment is locked and cannot be edited",
         )
+
+    # Ownership check
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None and doc.get("programId") not in scoped_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this assessment")
 
     uploaded_files = []
     for file in files:
@@ -273,22 +279,36 @@ async def upload_assessment_files(
 
 @router.post("/{assessment_id}/lock", response_model=dict)
 async def lock_assessment(assessment_id: str, admin: dict = Depends(require_admin)):
-    result = await assessments_collection.update_one(
+    doc = await assessments_collection.find_one({"_id": ObjectId(assessment_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    # Ownership check
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None and doc.get("programId") not in scoped_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this assessment")
+
+    await assessments_collection.update_one(
         {"_id": ObjectId(assessment_id)}, {"$set": {"isLocked": True}}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Assessment not found")
     updated = await assessments_collection.find_one({"_id": ObjectId(assessment_id)})
     return await assessment_doc_to_response(updated)
 
 
 @router.post("/{assessment_id}/unlock", response_model=dict)
 async def unlock_assessment(assessment_id: str, admin: dict = Depends(require_admin)):
-    result = await assessments_collection.update_one(
+    doc = await assessments_collection.find_one({"_id": ObjectId(assessment_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    # Ownership check
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None and doc.get("programId") not in scoped_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this assessment")
+
+    await assessments_collection.update_one(
         {"_id": ObjectId(assessment_id)}, {"$set": {"isLocked": False}}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Assessment not found")
     updated = await assessments_collection.find_one({"_id": ObjectId(assessment_id)})
     return await assessment_doc_to_response(updated)
 
@@ -310,6 +330,15 @@ async def copy_assessment_to_programs(
     source = await assessments_collection.find_one({"_id": ObjectId(assessment_id)})
     if not source:
         raise HTTPException(status_code=404, detail="Assessment not found")
+
+    # Ownership check: verify source and all targets are in scope
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is not None:
+        if source.get("programId") not in scoped_ids:
+            raise HTTPException(status_code=403, detail="You do not have access to this assessment")
+        for pid in data.targetProgramIds:
+            if pid not in scoped_ids:
+                raise HTTPException(status_code=403, detail=f"You do not have access to program {pid}")
 
     if not data.targetProgramIds:
         raise HTTPException(status_code=400, detail="No target programs specified")

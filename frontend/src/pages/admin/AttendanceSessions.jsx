@@ -18,7 +18,7 @@ export default function AttendanceSessions() {
     const [creating, setCreating] = useState(false);
     const [stats, setStats] = useState(null);
     const [form, setForm] = useState({
-        title: '',
+        date: new Date().toISOString().split('T')[0],
         slotType: 'morning_checkin',
         lateThresholdMinutes: 15,
         sessionDurationMinutes: 120,
@@ -48,15 +48,23 @@ export default function AttendanceSessions() {
         } catch (err) { /* ignore */ }
     };
 
+    const generateTitle = (dateStr, slotType) => {
+        const d = new Date(dateStr + 'T00:00:00');
+        const formatted = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const slotLabel = SLOT_TYPES.find(s => s.key === slotType)?.label || 'Session';
+        return `${formatted} — ${slotLabel}`;
+    };
+
     const handleCreate = async (e) => {
         e.preventDefault();
-        if (!form.title.trim()) return toast.error('Title is required');
+        if (!form.date) return toast.error('Please select a date');
         setCreating(true);
+        const title = generateTitle(form.date, form.slotType);
         try {
-            const res = await client.post('/attendance/sessions', form);
+            const res = await client.post('/attendance/sessions', { ...form, title });
             toast.success('Session created!');
             setShowModal(false);
-            setForm({ title: '', slotType: 'morning_checkin', lateThresholdMinutes: 15, sessionDurationMinutes: 120 });
+            setForm({ date: new Date().toISOString().split('T')[0], slotType: 'morning_checkin', lateThresholdMinutes: 15, sessionDurationMinutes: 120 });
             navigate(`/admin/attendance/${res.data.id}/qr`);
         } catch (err) {
             toast.error(err.response?.data?.detail || 'Failed to create session');
@@ -310,13 +318,15 @@ export default function AttendanceSessions() {
                             </h2>
                             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                 <div>
-                                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>Session Title</label>
+                                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px', display: 'block' }}>📅 Session Date</label>
                                     <input
-                                        type="text"
-                                        placeholder="e.g., Day 5 - Gen AI Workshop"
-                                        value={form.title}
-                                        onChange={(e) => setForm({ ...form, title: e.target.value })}
+                                        type="date"
+                                        value={form.date}
+                                        onChange={(e) => setForm({ ...form, date: e.target.value })}
                                         autoFocus
+                                        style={{
+                                            colorScheme: 'dark',
+                                        }}
                                     />
                                 </div>
                                 <div>

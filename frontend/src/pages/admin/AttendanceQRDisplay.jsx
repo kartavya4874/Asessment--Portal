@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { QRCodeSVG } from 'qrcode.react';
 import client from '../../api/client';
 import toast from 'react-hot-toast';
 
@@ -98,13 +99,6 @@ export default function AttendanceQRDisplay() {
         }
     };
 
-    // Generate QR code SVG using a simple QR algorithm via API
-    const generateQRSvg = (text) => {
-        // We'll use an embedded QR code library approach - generating via Google Charts API as a fallback
-        const encoded = encodeURIComponent(text);
-        return `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encoded}&bgcolor=0a0a16&color=ffffff&format=svg`;
-    };
-
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
@@ -187,10 +181,17 @@ export default function AttendanceQRDisplay() {
                             zIndex: 1,
                         }}
                     >
-                        <img
-                            src={generateQRSvg(qrData.qrUrl)}
-                            alt="Attendance QR Code"
-                            style={{ width: 'clamp(200px, 40vw, 320px)', height: 'clamp(200px, 40vw, 320px)', display: 'block' }}
+                        <QRCodeSVG
+                            value={qrData.qrUrl}
+                            size={Math.min(320, window.innerWidth * 0.4)}
+                            level="H"
+                            bgColor="#ffffff"
+                            fgColor="#0a0a16"
+                            style={{
+                                width: 'clamp(200px, 40vw, 320px)',
+                                height: 'clamp(200px, 40vw, 320px)',
+                                display: 'block',
+                            }}
                         />
                     </motion.div>
                 ) : (

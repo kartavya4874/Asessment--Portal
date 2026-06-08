@@ -332,7 +332,7 @@ async def update_instructor(
     data: InstructorUpdate,
     admin: dict = Depends(require_super_admin),
 ):
-    """Update an instructor account (super admin only)."""
+    """Update an instructor account (super admin only). Cannot edit super_admin accounts."""
     try:
         doc = await admins_collection.find_one({"_id": ObjectId(instructor_id)})
     except InvalidId:
@@ -340,6 +340,10 @@ async def update_instructor(
 
     if not doc:
         raise HTTPException(status_code=404, detail="Instructor not found")
+
+    # Protect super_admin accounts from being edited
+    if doc.get("adminRole") == "super_admin":
+        raise HTTPException(status_code=403, detail="Super Admin account cannot be modified")
 
     update_data = {}
     if data.name:
@@ -360,9 +364,17 @@ async def update_instructor(
 
 @router.delete("/instructors/{instructor_id}")
 async def delete_instructor(instructor_id: str, admin: dict = Depends(require_super_admin)):
-    """Delete an instructor account (super admin only). Cannot delete self."""
+    """Delete an instructor account (super admin only). Cannot delete self or other super_admins."""
     if instructor_id == admin["id"]:
         raise HTTPException(status_code=400, detail="Cannot delete your own account")
+
+    # Protect super_admin accounts from deletion
+    try:
+        target = await admins_collection.find_one({"_id": ObjectId(instructor_id)})
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid instructor ID")
+    if target and target.get("adminRole") == "super_admin":
+        raise HTTPException(status_code=403, detail="Super Admin account cannot be deleted")
 
     try:
         result = await admins_collection.delete_one({"_id": ObjectId(instructor_id)})

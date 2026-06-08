@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, HTTPException, status, Request
+from fastapi import APIRouter, HTTPException, status, Request, Depends
 from bson import ObjectId
 from bson.errors import InvalidId
 from app.database import (
@@ -54,7 +54,7 @@ async def _get_total_students():
 # ─── Admin: Session Management ────────────────────────────
 
 @router.post("/sessions", response_model=dict)
-async def create_session(data: CreateSessionRequest, admin=require_admin):
+async def create_session(data: CreateSessionRequest, admin=Depends(require_admin)):
     """Create a new attendance session and generate first QR token."""
     now = datetime.now(timezone.utc)
     qr_token = _generate_qr_token()
@@ -96,7 +96,7 @@ async def create_session(data: CreateSessionRequest, admin=require_admin):
 
 
 @router.get("/sessions")
-async def list_sessions(admin=require_admin):
+async def list_sessions(admin=Depends(require_admin)):
     """List all attendance sessions (newest first), scoped by instructor."""
     query = {}
     # Instructors only see their own sessions
@@ -128,7 +128,7 @@ async def list_sessions(admin=require_admin):
 
 
 @router.get("/sessions/{session_id}")
-async def get_session_detail(session_id: str, admin=require_admin):
+async def get_session_detail(session_id: str, admin=Depends(require_admin)):
     """Get session details with all attendance records."""
     try:
         session = await attendance_sessions_collection.find_one({"_id": ObjectId(session_id)})
@@ -191,7 +191,7 @@ async def get_session_detail(session_id: str, admin=require_admin):
 
 
 @router.post("/sessions/{session_id}/refresh-qr")
-async def refresh_qr(session_id: str, admin=require_admin):
+async def refresh_qr(session_id: str, admin=Depends(require_admin)):
     """Refresh the QR token for a session."""
     try:
         session = await attendance_sessions_collection.find_one({"_id": ObjectId(session_id)})
@@ -228,7 +228,7 @@ async def refresh_qr(session_id: str, admin=require_admin):
 
 
 @router.put("/sessions/{session_id}/end")
-async def end_session(session_id: str, admin=require_admin):
+async def end_session(session_id: str, admin=Depends(require_admin)):
     """End an active session."""
     try:
         session = await attendance_sessions_collection.find_one({"_id": ObjectId(session_id)})
@@ -253,7 +253,7 @@ async def end_session(session_id: str, admin=require_admin):
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str, admin=require_admin):
+async def delete_session(session_id: str, admin=Depends(require_admin)):
     """Delete a session and all its records."""
     try:
         result = await attendance_sessions_collection.delete_one({"_id": ObjectId(session_id)})
@@ -272,7 +272,7 @@ async def delete_session(session_id: str, admin=require_admin):
 # ─── Student: Mark Attendance ─────────────────────────────
 
 @router.post("/mark")
-async def mark_attendance(data: MarkAttendanceRequest, request: Request, student=require_student):
+async def mark_attendance(data: MarkAttendanceRequest, request: Request, student=Depends(require_student)):
     """Mark attendance by validating the QR token."""
     try:
         session = await attendance_sessions_collection.find_one({"_id": ObjectId(data.sessionId)})
@@ -350,7 +350,7 @@ async def mark_attendance(data: MarkAttendanceRequest, request: Request, student
 # ─── Student: View Own Attendance ─────────────────────────
 
 @router.get("/my")
-async def get_my_attendance(student=require_student):
+async def get_my_attendance(student=Depends(require_student)):
     """Get all attendance records for the current student."""
     records = []
     cursor = attendance_records_collection.find(
@@ -376,7 +376,7 @@ async def get_my_attendance(student=require_student):
 
 
 @router.get("/my/stats")
-async def get_my_stats(student=require_student):
+async def get_my_stats(student=Depends(require_student)):
     """Get attendance statistics for the current student."""
     # Total sessions
     total_sessions = await attendance_sessions_collection.count_documents({})
@@ -439,7 +439,7 @@ async def get_my_stats(student=require_student):
 # ─── Admin: Analytics ─────────────────────────────────────
 
 @router.get("/admin/stats")
-async def get_admin_stats(admin=require_admin):
+async def get_admin_stats(admin=Depends(require_admin)):
     """Get overall attendance statistics for admin dashboard."""
     query = {}
     if admin.get("adminRole") != "super_admin":
@@ -470,7 +470,7 @@ async def get_admin_stats(admin=require_admin):
 
 
 @router.get("/admin/students")
-async def get_all_student_attendance(admin=require_admin):
+async def get_all_student_attendance(admin=Depends(require_admin)):
     """Get attendance summary for all students."""
     total_sessions = await attendance_sessions_collection.count_documents({})
     students = []
@@ -501,7 +501,7 @@ async def get_all_student_attendance(admin=require_admin):
 
 
 @router.get("/admin/export")
-async def export_attendance(admin=require_admin):
+async def export_attendance(admin=Depends(require_admin)):
     """Export all attendance data as JSON (can be used to generate Excel on frontend)."""
     query = {}
     if admin.get("adminRole") != "super_admin":
@@ -540,7 +540,7 @@ from app.utils.excel_export import generate_attendance_session_excel, generate_a
 
 
 @router.get("/admin/export/session/{session_id}")
-async def export_session_excel(session_id: str, admin=require_admin):
+async def export_session_excel(session_id: str, admin=Depends(require_admin)):
     """Export a single attendance session as a formatted Excel file."""
     try:
         session = await attendance_sessions_collection.find_one({"_id": ObjectId(session_id)})
@@ -600,7 +600,7 @@ async def export_session_excel(session_id: str, admin=require_admin):
 
 
 @router.get("/admin/export/all")
-async def export_all_attendance_excel(admin=require_admin):
+async def export_all_attendance_excel(admin=Depends(require_admin)):
     """Export all attendance data as a combined Excel workbook with overview matrix."""
     query = {}
     if admin.get("adminRole") != "super_admin":

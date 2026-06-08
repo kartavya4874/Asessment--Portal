@@ -195,9 +195,9 @@ async def flush_email_queue():
         print(f"📧 Daily email limit reached ({DAILY_EMAIL_LIMIT}). Will retry tomorrow.")
         return
 
-    # Pick oldest pending emails up to the remaining quota
+    # Pick oldest pending emails up to the remaining quota (max 5 retry attempts)
     pending = await email_queue_collection.find(
-        {"status": "pending"}
+        {"status": "pending", "attempts": {"$lt": 5}}
     ).sort("created_at", 1).limit(remaining_quota).to_list(length=remaining_quota)
 
     if not pending:
