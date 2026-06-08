@@ -658,8 +658,8 @@ async def export_session_excel(session_id: str, admin=Depends(require_admin)):
             "studentName": student.get("name") if student else "Unknown",
             "rollNumber": student.get("rollNumber") if student else "N/A",
             "email": student.get("email") if student else "N/A",
-            "status": r["status"],
-            "markedAt": r["markedAt"].isoformat() if hasattr(r["markedAt"], "isoformat") else str(r["markedAt"]),
+            "status": r.get("status", "present"),
+            "markedAt": r.get("markedAt", "").isoformat() if hasattr(r.get("markedAt", ""), "isoformat") else str(r.get("markedAt", "")),
         })
 
     # Build session student filter
@@ -683,18 +683,23 @@ async def export_session_excel(session_id: str, admin=Depends(require_admin)):
                 "email": st.get("email") or "N/A",
             })
 
-    session_date = session["date"].strftime("%d %b %Y")
+    session_date = session.get("date", "")
+    if hasattr(session_date, "strftime"):
+        session_date = session_date.strftime("%d %b %Y")
+    else:
+        session_date = str(session_date)[:10]
     slot_label = SLOT_LABELS.get(session.get("slotType", "morning_checkin"), "Session")
 
     excel_buffer = generate_attendance_session_excel(
-        session_title=session["title"],
+        session_title=session.get("title", "Unknown"),
         session_date=session_date,
         slot_label=slot_label,
         records=records,
         absent_students=absent_students,
     )
 
-    filename = f"Attendance_{session['title']}_{session_date}.xlsx".replace(" ", "_")
+    safe_title = "".join(c for c in session.get("title", "Unknown") if c.isalnum() or c in (' ', '_', '-')).strip()
+    filename = f"Attendance_{safe_title}_{session_date}.xlsx".replace(" ", "_")
     return StreamingResponse(
         excel_buffer,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -726,14 +731,18 @@ async def export_all_attendance_excel(admin=Depends(require_admin)):
                 "studentName": student.get("name") if student else "Unknown",
                 "rollNumber": student.get("rollNumber") if student else "N/A",
                 "email": student.get("email") if student else "N/A",
-                "status": r["status"],
-                "markedAt": r["markedAt"].isoformat() if hasattr(r["markedAt"], "isoformat") else str(r["markedAt"]),
+                "status": r.get("status", "present"),
+                "markedAt": r.get("markedAt", "").isoformat() if hasattr(r.get("markedAt", ""), "isoformat") else str(r.get("markedAt", "")),
             })
+        
+        session_date_val = s.get("date", "")
+        session_date_iso = session_date_val.isoformat() if hasattr(session_date_val, "isoformat") else str(session_date_val)
+        
         sessions_data.append({
             "sessionId": sid,
-            "title": s["title"],
+            "title": s.get("title", "Unknown"),
             "slotType": s.get("slotType", "morning_checkin"),
-            "date": s["date"].isoformat(),
+            "date": session_date_iso,
             "records": records,
         })
 
