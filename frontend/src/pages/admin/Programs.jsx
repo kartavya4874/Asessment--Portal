@@ -15,7 +15,7 @@ export default function Programs() {
     const [editingProgram, setEditingProgram] = useState(null);
     const [form, setForm] = useState({ name: '', years: '', specializations: '' });
     const { user } = useAuth();
-    const isSuperAdmin = user?.adminRole === 'super_admin';
+    const isSuperAdmin = user?.adminRole === 'super_admin' || user?.email === 'admin@geetauniversity.edu.in';
 
     const fetchPrograms = async () => {
         try {

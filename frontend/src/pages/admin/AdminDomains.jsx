@@ -15,7 +15,7 @@ export default function AdminDomains() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('manage'); // 'manage' or 'enrollments'
     const { user } = useAuth();
-    const isSuperAdmin = user?.adminRole === 'super_admin';
+    const isSuperAdmin = user?.adminRole === 'super_admin' || user?.email === 'admin@geetauniversity.edu.in';
 
     // Form state for creating a new domain
     const [showForm, setShowForm] = useState(false);
@@ -43,7 +43,7 @@ export default function AdminDomains() {
             setDomains(domainsRes.data);
             setStudents(studentsRes.data);
 
-            if (user?.adminRole === 'super_admin') {
+            if (user?.adminRole === 'super_admin' || user?.email === 'admin@geetauniversity.edu.in') {
                 const instructorsRes = await client.get('/auth/instructors');
                 setInstructors(instructorsRes.data);
             }
