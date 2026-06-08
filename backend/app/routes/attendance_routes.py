@@ -33,6 +33,13 @@ settings = get_settings()
 
 # ─── Helpers ───────────────────────────────────────────────
 
+def to_ist(dt: datetime) -> datetime:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc).astimezone(IST)
+    return dt.astimezone(IST)
+
 def _generate_qr_token() -> str:
     """Generate a cryptographically secure QR token."""
     return secrets.token_urlsafe(32)
@@ -143,17 +150,17 @@ async def list_sessions(admin=Depends(require_admin)):
             "title": s["title"],
             "slotType": s.get("slotType", "morning_checkin"),
             "slotLabel": SLOT_LABELS.get(s.get("slotType", "morning_checkin"), "📋 Session"),
-            "date": s["date"].isoformat(),
+            "date": to_ist(s["date"]).isoformat(),
             "isActive": s.get("isActive", False),
-            "sessionStart": s["sessionStart"].isoformat(),
-            "sessionEnd": s.get("sessionEnd", "").isoformat() if s.get("sessionEnd") else None,
+            "sessionStart": to_ist(s["sessionStart"]).isoformat(),
+            "sessionEnd": to_ist(s["sessionEnd"]).isoformat() if s.get("sessionEnd") else None,
             "lateThresholdMinutes": s.get("lateThresholdMinutes", 15),
             "presentCount": counts["present"],
             "lateCount": counts["late"],
             "totalStudents": session_total_students,
             "programId": s.get("programId"),
             "domainId": s.get("domainId"),
-            "createdAt": s["createdAt"].isoformat(),
+            "createdAt": to_ist(s["createdAt"]).isoformat(),
         })
     return sessions
 
@@ -225,10 +232,10 @@ async def get_session_detail(session_id: str, admin=Depends(require_admin)):
         "title": session["title"],
         "slotType": session.get("slotType", "morning_checkin"),
         "slotLabel": SLOT_LABELS.get(session.get("slotType", "morning_checkin"), "📋 Session"),
-        "date": session["date"].isoformat(),
+        "date": to_ist(session["date"]).isoformat(),
         "isActive": session.get("isActive", False),
-        "sessionStart": session["sessionStart"].isoformat(),
-        "sessionEnd": session.get("sessionEnd", "").isoformat() if session.get("sessionEnd") else None,
+        "sessionStart": to_ist(session["sessionStart"]).isoformat(),
+        "sessionEnd": to_ist(session["sessionEnd"]).isoformat() if session.get("sessionEnd") else None,
         "lateThresholdMinutes": session.get("lateThresholdMinutes", 15),
         "presentCount": present_count,
         "lateCount": late_count,
@@ -376,9 +383,7 @@ async def mark_attendance(data: MarkAttendanceRequest, request: Request, student
 
     # Determine if late
     now = datetime.now(IST)
-    session_start = session["sessionStart"]
-    if session_start.tzinfo is None:
-        session_start = session_start.replace(tzinfo=IST)
+    session_start = to_ist(session["sessionStart"])
 
     minutes_diff = (now - session_start).total_seconds() / 60
     is_late = minutes_diff > session.get("lateThresholdMinutes", 15)
@@ -437,8 +442,8 @@ async def get_my_attendance(student=Depends(require_student)):
             "sessionTitle": session["title"] if session else "Unknown Session",
             "slotType": session.get("slotType", "morning_checkin") if session else "morning_checkin",
             "slotLabel": SLOT_LABELS.get(session.get("slotType", "morning_checkin"), "📋 Session") if session else "📋 Session",
-            "sessionDate": session["date"].isoformat() if session else None,
-            "markedAt": r["markedAt"].isoformat(),
+            "sessionDate": to_ist(session["date"]).isoformat() if session else None,
+            "markedAt": to_ist(r["markedAt"]).isoformat(),
             "status": r["status"],
         })
 

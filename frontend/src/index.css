@@ -527,13 +527,44 @@ a:hover {
   .btn-danger {
     padding: 10px 14px;
     font-size: 12px;
-    width: 100%;
-    text-align: center;
   }
 
   .card,
   .card-glow {
     padding: 14px;
     border-radius: 12px;
+  }
+}
+
+/* ─── Mobile Header Navigation ─────────────────────────── */
+@media (max-width: 900px) {
+  header.glass {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 12px 16px !important;
+    gap: 12px !important;
+  }
+
+  header .header-brand-nav {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  header nav {
+    margin-left: 0 !important;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    width: 100%;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  header nav::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  header .header-actions {
+    justify-content: space-between !important;
+    width: 100%;
   }
 }

@@ -50,13 +50,7 @@ export default function QRScanner() {
         const { Html5Qrcode } = await import('html5-qrcode');
 
         try {
-            // Check if camera is available
-            const devices = await Html5Qrcode.getCameras();
-            if (!devices || devices.length === 0) {
-                setCameraError('No camera found on this device. Please use a device with a camera.');
-                return;
-            }
-
+            // Let the scanner handle camera permissions directly
             const scanner = new Html5Qrcode('qr-reader-container');
             scannerRef.current = scanner;
 
@@ -276,11 +270,20 @@ export default function QRScanner() {
                         )}
 
                         {/* Scanner container — html5-qrcode renders its video here */}
+                        <style>{`
+                            #qr-reader-container video {
+                                width: 100% !important;
+                                height: 100% !important;
+                                object-fit: cover !important;
+                                border-radius: 16px !important;
+                            }
+                        `}</style>
                         <div
                             id="qr-reader-container"
                             style={{
                                 width: '100%',
-                                maxWidth: '320px',
+                                maxWidth: '360px',
+                                aspectRatio: '1/1',
                                 margin: scanning ? '0 auto 20px' : '0',
                                 borderRadius: scanning ? '16px' : '0',
                                 overflow: scanning ? 'hidden' : 'visible',

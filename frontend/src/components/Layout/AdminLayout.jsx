@@ -16,10 +16,12 @@ const baseNavItems = [
 ];
 
 export default function AdminLayout() {
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [collapsed, setCollapsed] = useState(window.innerWidth < 768);
 
     useEffect(() => {
         const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
             if (window.innerWidth < 768) setCollapsed(true);
         };
         window.addEventListener('resize', handleResize);
@@ -39,9 +41,30 @@ export default function AdminLayout() {
 
     return (
         <div style={{ display: 'flex', minHeight: '100vh' }}>
+            {/* Mobile Backdrop */}
+            <AnimatePresence>
+                {isMobile && !collapsed && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setCollapsed(true)}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.5)',
+                            zIndex: 90,
+                            backdropFilter: 'blur(4px)',
+                        }}
+                    />
+                )}
+            </AnimatePresence>
+
             {/* Sidebar */}
             <motion.aside
-                animate={{ width: collapsed ? 72 : 264 }}
+                animate={{ 
+                    width: isMobile ? (collapsed ? 0 : 264) : (collapsed ? 72 : 264),
+                }}
                 transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
                 className="glass"
                 style={{
@@ -53,7 +76,7 @@ export default function AdminLayout() {
                     top: 0,
                     left: 0,
                     bottom: 0,
-                    zIndex: 50,
+                    zIndex: 100,
                 }}
             >
                 {/* Logo */}
@@ -108,6 +131,7 @@ export default function AdminLayout() {
                             key={item.path}
                             to={item.path}
                             end={item.exact}
+                            onClick={() => { if (isMobile) setCollapsed(true); }}
                             style={({ isActive }) => ({
                                 display: 'flex',
                                 alignItems: 'center',
@@ -246,12 +270,27 @@ export default function AdminLayout() {
             {/* Main Content */}
             <main style={{
                 flex: 1,
-                marginLeft: collapsed ? 72 : 264,
+                marginLeft: isMobile ? 0 : (collapsed ? 72 : 264),
                 transition: 'margin-left 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                 padding: 'clamp(16px, 3vw, 32px)',
                 maxWidth: '100%',
                 overflow: 'auto',
+                minHeight: '100vh',
             }}>
+                {isMobile && (
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', gap: '16px' }}>
+                        <button 
+                            onClick={() => setCollapsed(!collapsed)} 
+                            className="btn-secondary" 
+                            style={{ padding: '8px 12px', fontSize: '18px' }}
+                        >
+                            ☰
+                        </button>
+                        <div style={{ fontSize: '18px', fontWeight: 800 }}>
+                            <span className="gradient-text">AI Lab</span> Admin
+                        </div>
+                    </div>
+                )}
                 <Outlet />
             </main>
         </div>

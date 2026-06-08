@@ -29,7 +29,7 @@ export default function StudentLayout() {
                 flexWrap: 'wrap',
                 gap: '8px',
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div className="header-brand-nav" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     <motion.div
                         whileHover={{ scale: 1.1, rotate: 5 }}
                         style={{
@@ -148,7 +148,7 @@ export default function StudentLayout() {
                     </nav>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                     {/* Theme Toggle */}
                     <motion.button
                         onClick={toggleTheme}

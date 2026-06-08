@@ -386,8 +386,10 @@ def generate_attendance_combined_excel(
             pct_cell.fill = ABSENT_FILL
 
     # ─── Per-Session Sheets ─────────────────────────────────
+    import re
     for s_idx, s in enumerate(sessions_data):
-        sheet_name = f"{s_idx + 1}. {s['title']}"[:31]
+        raw_name = f"{s_idx + 1}. {s['title']}"
+        sheet_name = re.sub(r'[\\/*?:\[\]]', '', raw_name)[:31]
         ws = wb.create_sheet(title=sheet_name)
         _style_attendance_header(ws, row=1)
 
