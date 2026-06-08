@@ -47,24 +47,41 @@ export default function Programs() {
         e.preventDefault();
         if (!form.name) { toast.error('Program name is required'); return; }
 
-        const payload = {
-            name: form.name.trim(),
-            years: String(form.years || '').split(',').map(s => s.trim()).filter(Boolean),
-            specializations: String(form.specializations || '').split(',').map(s => s.trim()).filter(Boolean),
-        };
+        const yearsArr = String(form.years || '').split(',').map(s => s.trim()).filter(Boolean);
+        const specsArr = String(form.specializations || '').split(',').map(s => s.trim()).filter(Boolean);
 
         try {
             if (editingProgram) {
+                const payload = {
+                    name: form.name.trim(),
+                    years: yearsArr,
+                    specializations: specsArr,
+                };
                 await client.put(`/programs/${editingProgram.id}`, payload);
                 toast.success('Program updated!');
             } else {
-                await client.post('/programs', payload);
-                toast.success('Program created!');
+                const names = form.name.split(',').map(n => n.trim()).filter(Boolean);
+                let successCount = 0;
+                for (const programName of names) {
+                    try {
+                        await client.post('/programs', {
+                            name: programName,
+                            years: yearsArr,
+                            specializations: specsArr,
+                        });
+                        successCount++;
+                    } catch (err) {
+                        toast.error(err.response?.data?.detail || `Failed to create ${programName}`);
+                    }
+                }
+                if (successCount > 0) {
+                    toast.success(`Successfully created ${successCount} program(s)!`);
+                }
             }
             resetForm();
             fetchPrograms();
         } catch (err) {
-            toast.error(getErrorDetail(err, 'Operation failed'));
+            toast.error('Operation failed');
         }
     };
 
