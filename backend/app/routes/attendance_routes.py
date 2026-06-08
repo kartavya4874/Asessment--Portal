@@ -129,11 +129,6 @@ async def list_sessions(admin=Depends(require_admin)):
         session_prog_id = s.get("programId")
         if session_prog_id:
             student_filter["programId"] = session_prog_id
-        else:
-            scoped_ids = await get_scoped_program_ids(admin)
-            if scoped_ids is not None:
-                student_filter["programId"] = {"$in": scoped_ids}
-
         session_dom_id = s.get("domainId")
         if session_dom_id:
             student_filter["enrolledSubjects"] = session_dom_id
@@ -177,10 +172,7 @@ async def get_session_detail(session_id: str, admin=Depends(require_admin)):
     if session_prog_id:
         student_filter["programId"] = session_prog_id
     else:
-        scoped_ids = await get_scoped_program_ids(admin)
-        if scoped_ids is not None:
-            student_filter["programId"] = {"$in": scoped_ids}
-
+        pass  # No program filter applied if session has no specific program
     session_dom_id = session.get("domainId")
     if session_dom_id:
         student_filter["enrolledSubjects"] = session_dom_id
@@ -520,8 +512,8 @@ async def get_admin_stats(admin=Depends(require_admin)):
     if admin.get("adminRole") != "super_admin":
         session_query["createdBy"] = admin["id"]
 
-    # Scope students to instructor's programs
-    student_filter = await _get_scoped_student_filter(admin)
+    # No program filter for attendance stats
+    student_filter = {}
 
     total_sessions = await attendance_sessions_collection.count_documents(session_query)
     total_students = await _get_total_students(student_filter)
@@ -663,11 +655,6 @@ async def export_session_excel(session_id: str, admin=Depends(require_admin)):
     session_prog_id = session.get("programId")
     if session_prog_id:
         student_filter["programId"] = session_prog_id
-    else:
-        scoped_ids = await get_scoped_program_ids(admin)
-        if scoped_ids is not None:
-            student_filter["programId"] = {"$in": scoped_ids}
-
     session_dom_id = session.get("domainId")
     if session_dom_id:
         student_filter["enrolledSubjects"] = session_dom_id
@@ -734,8 +721,8 @@ async def export_all_attendance_excel(admin=Depends(require_admin)):
             "records": records,
         })
 
-    # Gather students scoped to instructor's programs
-    student_filter = await _get_scoped_student_filter(admin)
+    # Gather all students (no program filter for attendance)
+    student_filter = {}
     all_students = []
     async for st in students_collection.find(student_filter).sort("rollNumber", 1):
         all_students.append({
