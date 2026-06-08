@@ -1,5 +1,8 @@
 import secrets
 from datetime import datetime, timezone, timedelta
+
+# Indian Standard Time (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
 from fastapi import APIRouter, HTTPException, status, Request, Depends
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -67,7 +70,7 @@ async def _get_total_students(student_filter: dict = None):
 @router.post("/sessions", response_model=dict)
 async def create_session(data: CreateSessionRequest, admin=Depends(require_admin)):
     """Create a new attendance session and generate first QR token."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(IST)
     qr_token = _generate_qr_token()
 
     # Validate slot type
@@ -251,7 +254,7 @@ async def refresh_qr(session_id: str, admin=Depends(require_admin)):
     if not session.get("isActive"):
         raise HTTPException(status_code=400, detail="Session is no longer active")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(IST)
     new_token = _generate_qr_token()
 
     await attendance_sessions_collection.update_one(
@@ -286,7 +289,7 @@ async def end_session(session_id: str, admin=Depends(require_admin)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(IST)
     await attendance_sessions_collection.update_one(
         {"_id": ObjectId(session_id)},
         {"$set": {"isActive": False, "sessionEnd": now, "qrToken": ""}},
@@ -372,10 +375,10 @@ async def mark_attendance(data: MarkAttendanceRequest, request: Request, student
         )
 
     # Determine if late
-    now = datetime.now(timezone.utc)
+    now = datetime.now(IST)
     session_start = session["sessionStart"]
     if session_start.tzinfo is None:
-        session_start = session_start.replace(tzinfo=timezone.utc)
+        session_start = session_start.replace(tzinfo=IST)
 
     minutes_diff = (now - session_start).total_seconds() / 60
     is_late = minutes_diff > session.get("lateThresholdMinutes", 15)
@@ -531,7 +534,7 @@ async def get_admin_stats(admin=Depends(require_admin)):
     avg_attendance = (total_attended / (total_sessions * total_students) * 100) if (total_sessions > 0 and total_students > 0) else 0
 
     # Today's stats (scoped to instructor's sessions)
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = datetime.now(IST).replace(hour=0, minute=0, second=0, microsecond=0)
     today_session_q = {**session_query, "date": {"$gte": today_start}}
     today_sessions = await attendance_sessions_collection.count_documents(today_session_q)
     today_records = await attendance_records_collection.count_documents({"markedAt": {"$gte": today_start}})
