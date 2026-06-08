@@ -7,6 +7,7 @@ from app.database import (
     attendance_sessions_collection,
     attendance_records_collection,
     students_collection,
+    programs_collection,
 )
 from app.auth import require_admin, require_student, get_current_user, get_scoped_program_ids
 from app.models.attendance import (
@@ -46,9 +47,19 @@ async def _count_records(session_id: str):
     return counts
 
 
-async def _get_total_students():
-    """Get total registered students."""
-    return await students_collection.count_documents({})
+async def _get_scoped_student_filter(admin: dict) -> dict:
+    """Build a MongoDB filter so instructors only see students from their own programs.
+    Super admin sees all students (empty filter).
+    """
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids is None:
+        return {}  # super admin — no filter
+    return {"programId": {"$in": scoped_ids}}
+
+
+async def _get_total_students(student_filter: dict = None):
+    """Get total registered students, optionally filtered by program scope."""
+    return await students_collection.count_documents(student_filter or {})
 
 
 # ─── Admin: Session Management ────────────────────────────
@@ -103,12 +114,15 @@ async def list_sessions(admin=Depends(require_admin)):
     if admin.get("adminRole") != "super_admin":
         query["createdBy"] = admin["id"]
 
+    # Scope student count to instructor's programs
+    student_filter = await _get_scoped_student_filter(admin)
+    total_students = await _get_total_students(student_filter)
+
     sessions = []
     cursor = attendance_sessions_collection.find(query).sort("date", -1)
     async for s in cursor:
         sid = str(s["_id"])
         counts = await _count_records(sid)
-        total_students = await _get_total_students()
         sessions.append({
             "id": sid,
             "title": s["title"],
@@ -138,10 +152,20 @@ async def get_session_detail(session_id: str, admin=Depends(require_admin)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Get all records for this session
+    # Scope students to instructor's programs
+    student_filter = await _get_scoped_student_filter(admin)
+
+    # Build a set of scoped student IDs for filtering records
+    scoped_student_ids = set()
+    async for st in students_collection.find(student_filter, {"_id": 1}):
+        scoped_student_ids.add(str(st["_id"]))
+
+    # Get all records for this session, filtered to scoped students
     records = []
     cursor = attendance_records_collection.find({"sessionId": session_id}).sort("markedAt", 1)
     async for r in cursor:
+        if r["studentId"] not in scoped_student_ids:
+            continue  # Skip students not in this instructor's programs
         student = await students_collection.find_one({"_id": ObjectId(r["studentId"])})
         records.append({
             "id": str(r["_id"]),
@@ -153,14 +177,14 @@ async def get_session_detail(session_id: str, admin=Depends(require_admin)):
             "status": r["status"],
         })
 
-    counts = await _count_records(session_id)
-    total_students = await _get_total_students()
+    total_students = len(scoped_student_ids)
+    present_count = sum(1 for r in records if r["status"] == "present")
+    late_count = sum(1 for r in records if r["status"] == "late")
 
-    # Get list of absent students
-    attended_ids = [r["studentId"] for r in records]
+    # Get list of absent students (only from scoped programs)
+    attended_ids = {r["studentId"] for r in records}
     absent_students = []
-    all_students_cursor = students_collection.find()
-    async for st in all_students_cursor:
+    async for st in students_collection.find(student_filter):
         sid = str(st["_id"])
         if sid not in attended_ids:
             absent_students.append({
@@ -181,9 +205,9 @@ async def get_session_detail(session_id: str, admin=Depends(require_admin)):
         "sessionStart": session["sessionStart"].isoformat(),
         "sessionEnd": session.get("sessionEnd", "").isoformat() if session.get("sessionEnd") else None,
         "lateThresholdMinutes": session.get("lateThresholdMinutes", 15),
-        "presentCount": counts["present"],
-        "lateCount": counts["late"],
-        "absentCount": total_students - counts["present"] - counts["late"],
+        "presentCount": present_count,
+        "lateCount": late_count,
+        "absentCount": total_students - present_count - late_count,
         "totalStudents": total_students,
         "records": records,
         "absentStudents": absent_students,
@@ -441,22 +465,32 @@ async def get_my_stats(student=Depends(require_student)):
 @router.get("/admin/stats")
 async def get_admin_stats(admin=Depends(require_admin)):
     """Get overall attendance statistics for admin dashboard."""
-    query = {}
+    session_query = {}
     if admin.get("adminRole") != "super_admin":
-        query["createdBy"] = admin["id"]
+        session_query["createdBy"] = admin["id"]
 
-    total_sessions = await attendance_sessions_collection.count_documents(query)
-    total_students = await _get_total_students()
-    active_q = {**query, "isActive": True}
+    # Scope students to instructor's programs
+    student_filter = await _get_scoped_student_filter(admin)
+
+    total_sessions = await attendance_sessions_collection.count_documents(session_query)
+    total_students = await _get_total_students(student_filter)
+    active_q = {**session_query, "isActive": True}
     active_sessions = await attendance_sessions_collection.count_documents(active_q)
 
-    # Average attendance across all sessions
-    total_attended = await attendance_records_collection.count_documents({})
+    # Average attendance — only count records from scoped students
+    if student_filter:
+        scoped_sids = []
+        async for st in students_collection.find(student_filter, {"_id": 1}):
+            scoped_sids.append(str(st["_id"]))
+        total_attended = await attendance_records_collection.count_documents({"studentId": {"$in": scoped_sids}}) if scoped_sids else 0
+    else:
+        total_attended = await attendance_records_collection.count_documents({})
     avg_attendance = (total_attended / (total_sessions * total_students) * 100) if (total_sessions > 0 and total_students > 0) else 0
 
-    # Today's stats
+    # Today's stats (scoped to instructor's sessions)
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    today_sessions = await attendance_sessions_collection.count_documents({"date": {"$gte": today_start}})
+    today_session_q = {**session_query, "date": {"$gte": today_start}}
+    today_sessions = await attendance_sessions_collection.count_documents(today_session_q)
     today_records = await attendance_records_collection.count_documents({"markedAt": {"$gte": today_start}})
 
     return {
@@ -471,11 +505,17 @@ async def get_admin_stats(admin=Depends(require_admin)):
 
 @router.get("/admin/students")
 async def get_all_student_attendance(admin=Depends(require_admin)):
-    """Get attendance summary for all students."""
-    total_sessions = await attendance_sessions_collection.count_documents({})
+    """Get attendance summary for students (scoped to instructor's programs)."""
+    # Scope: instructors only see their own sessions + students
+    session_query = {}
+    if admin.get("adminRole") != "super_admin":
+        session_query["createdBy"] = admin["id"]
+    total_sessions = await attendance_sessions_collection.count_documents(session_query)
+
+    student_filter = await _get_scoped_student_filter(admin)
     students = []
 
-    cursor = students_collection.find().sort("name", 1)
+    cursor = students_collection.find(student_filter).sort("name", 1)
     async for st in cursor:
         sid = str(st["_id"])
         attended = await attendance_records_collection.count_documents({"studentId": sid})
@@ -567,10 +607,11 @@ async def export_session_excel(session_id: str, admin=Depends(require_admin)):
             "markedAt": r["markedAt"].isoformat(),
         })
 
-    # Get absent students
+    # Get absent students (scoped to instructor's programs)
+    student_filter = await _get_scoped_student_filter(admin)
     attended_ids = {r["studentId"] for r in records}
     absent_students = []
-    async for st in students_collection.find():
+    async for st in students_collection.find(student_filter):
         sid = str(st["_id"])
         if sid not in attended_ids:
             absent_students.append({
@@ -630,9 +671,10 @@ async def export_all_attendance_excel(admin=Depends(require_admin)):
             "records": records,
         })
 
-    # Gather all students
+    # Gather students scoped to instructor's programs
+    student_filter = await _get_scoped_student_filter(admin)
     all_students = []
-    async for st in students_collection.find().sort("rollNumber", 1):
+    async for st in students_collection.find(student_filter).sort("rollNumber", 1):
         all_students.append({
             "id": str(st["_id"]),
             "rollNumber": st["rollNumber"],

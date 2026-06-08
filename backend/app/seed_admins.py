@@ -20,8 +20,24 @@ SUPER_ADMIN_PASSWORD = "Random@123"
 
 
 async def seed_admins():
-    """Upsert the hardcoded super admin + env-defined instructor accounts."""
+    """Upsert the hardcoded super admin + env-defined instructor accounts.
+    Also demotes any stale super_admin accounts from previous versions.
+    """
     settings = get_settings()
+
+    # ── 0. Demote stale super_admins from previous deployments ──
+    # Only the hardcoded email should ever be super_admin.
+    # Any other account that was previously granted super_admin
+    # (e.g. from old seeding logic) gets demoted to instructor.
+    demote_result = await db.admins.update_many(
+        {
+            "adminRole": "super_admin",
+            "email": {"$ne": SUPER_ADMIN_EMAIL},
+        },
+        {"$set": {"adminRole": "instructor"}},
+    )
+    if demote_result.modified_count > 0:
+        print(f"🔒 Demoted {demote_result.modified_count} stale super_admin(s) to instructor")
 
     # ── 1. Seed the single super admin ─────────────────────────
     await _upsert_admin(
