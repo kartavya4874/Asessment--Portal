@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from bson import ObjectId
 from bson.errors import InvalidId
 from app.database import admins_collection, students_collection, programs_collection, password_resets_collection
-from app.auth import hash_password, verify_password, create_access_token, require_super_admin
+from app.auth import hash_password, verify_password, create_access_token, require_super_admin, require_student
 from app.models.admin import AdminLogin, AdminResponse
 from app.models.student import StudentRegister, StudentLogin, StudentResponse, ForgotPasswordRequest, ResetPasswordRequest
 from app.config import get_settings
@@ -167,6 +167,26 @@ async def student_login(data: StudentLogin):
             "year": student["year"],
             "role": "student",
         },
+    }
+
+
+@router.get("/student/me", response_model=dict)
+async def get_current_student_profile(student: dict = Depends(require_student)):
+    doc = await students_collection.find_one({"_id": ObjectId(student["id"])})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return {
+        "id": str(doc["_id"]),
+        "name": doc.get("name", ""),
+        "email": doc.get("email", ""),
+        "rollNumber": doc.get("rollNumber", ""),
+        "programId": doc.get("programId", ""),
+        "specialization": doc.get("specialization", ""),
+        "year": doc.get("year", ""),
+        "domainRegistered": doc.get("domainRegistered", False),
+        "domainPreferences": doc.get("domainPreferences", {}),
+        "enrolledSubjects": doc.get("enrolledSubjects", []),
+        "role": "student"
     }
 
 

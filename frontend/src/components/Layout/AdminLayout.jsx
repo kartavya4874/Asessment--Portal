@@ -8,6 +8,7 @@ const baseNavItems = [
     { path: '/admin', label: 'Dashboard', icon: '📊', exact: true },
     { path: '/admin/programs', label: 'Programs', icon: '🎓' },
     { path: '/admin/students', label: 'Students', icon: '👥' },
+    { path: '/admin/domains', label: 'Subject/Domain', icon: '🎯' },
     { path: '/admin/assessments', label: 'Assessments', icon: '📝' },
     { path: '/admin/attendance', label: 'Attendance', icon: '📋' },
     { path: '/admin/instructors', label: 'Instructors', icon: '👑', superAdminOnly: true },

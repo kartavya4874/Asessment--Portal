@@ -61,6 +61,40 @@ async def seed_admins():
             role="instructor",
         )
 
+    # ── 3. Seed default subject domains ─────────────────────────
+    await seed_default_domains()
+
+
+async def seed_default_domains():
+    """Seed initial subject/domain options if database is empty."""
+    try:
+        count = await db.domains.count_documents({})
+        if count == 0:
+            default_domains = [
+                {
+                    "name": "Graphic Design",
+                    "description": "Learn layout design, visual branding, typography, and professional software usage.",
+                    "code": "GD-101",
+                    "createdAt": datetime.now(timezone.utc)
+                },
+                {
+                    "name": "Social Media Marketing",
+                    "description": "Master online community management, content scheduling, and social media analytics.",
+                    "code": "SMM-102",
+                    "createdAt": datetime.now(timezone.utc)
+                },
+                {
+                    "name": "SEO (Search Engine Optimization)",
+                    "description": "On-page and off-page optimization, search algorithms, keyword research, and traffic analytics.",
+                    "code": "SEO-103",
+                    "createdAt": datetime.now(timezone.utc)
+                }
+            ]
+            await db.domains.insert_many(default_domains)
+            print("🌱 Default subject/domain tracks seeded")
+    except Exception as e:
+        print(f"⚠️ Failed to seed default subject/domain tracks: {e}")
+
 
 async def _upsert_admin(*, name: str, email: str, password: str, role: str):
     """Insert a new admin or update name only (never overwrite existing password)."""

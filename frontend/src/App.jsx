@@ -34,6 +34,8 @@ import AttendanceSessionDetail from './pages/admin/AttendanceSessionDetail';
 import MarkAttendance from './pages/student/MarkAttendance';
 import MyAttendance from './pages/student/MyAttendance';
 import InstructorManagement from './pages/admin/InstructorManagement';
+import AdminDomains from './pages/admin/AdminDomains';
+import StudentDomains from './pages/student/StudentDomains';
 
 // ─── Loading fallback ───────────────────────────────────
 function PageLoader() {
@@ -108,6 +110,7 @@ export default function App() {
                   <Route path="attendance/:id" element={<AttendanceSessionDetail />} />
                   <Route path="attendance/:id/qr" element={<AttendanceQRDisplay />} />
                   <Route path="instructors" element={<InstructorManagement />} />
+                  <Route path="domains" element={<AdminDomains />} />
                 </Route>
 
                 {/* Student Routes */}
@@ -118,6 +121,7 @@ export default function App() {
                   <Route path="assessment/:id" element={<AssessmentView />} />
                   <Route path="results" element={<MyResults />} />
                   <Route path="attendance" element={<MyAttendance />} />
+                  <Route path="domains" element={<StudentDomains />} />
                 </Route>
 
                 {/* Public Attendance Scan Route (student must be logged in) */}
