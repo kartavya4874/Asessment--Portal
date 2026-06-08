@@ -110,6 +110,24 @@ export default function StudentLayout() {
                             📋 Attendance
                         </NavLink>
                         <NavLink
+                            to="/student/scan"
+                            style={({ isActive }) => ({
+                                padding: '10px 18px',
+                                borderRadius: '10px',
+                                fontSize: '14px',
+                                fontWeight: isActive ? 600 : 400,
+                                color: isActive ? '#fff' : 'var(--text-secondary)',
+                                background: isActive
+                                    ? 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))'
+                                    : 'transparent',
+                                textDecoration: 'none',
+                                transition: 'all 0.25s',
+                                boxShadow: isActive ? '0 2px 12px var(--glow-primary)' : 'none',
+                            })}
+                        >
+                            📱 Scan QR
+                        </NavLink>
+                        <NavLink
                             to="/student/domains"
                             style={({ isActive }) => ({
                                 padding: '10px 18px',

@@ -156,15 +156,28 @@ export default function AttendanceSessions() {
                             try {
                                 toast.loading('Generating Excel...', { id: 'export' });
                                 const res = await client.get('/attendance/admin/export/all', { responseType: 'blob' });
-                                const url = window.URL.createObjectURL(new Blob([res.data]));
+                                const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                                const url = window.URL.createObjectURL(blob);
                                 const a = document.createElement('a');
                                 a.href = url;
                                 a.download = `Attendance_Report.xlsx`;
+                                document.body.appendChild(a);
                                 a.click();
+                                document.body.removeChild(a);
                                 window.URL.revokeObjectURL(url);
                                 toast.success('Excel downloaded!', { id: 'export' });
                             } catch (err) {
-                                toast.error('Export failed', { id: 'export' });
+                                let msg = 'Export failed';
+                                try {
+                                    if (err.response?.data instanceof Blob) {
+                                        const text = await err.response.data.text();
+                                        const parsed = JSON.parse(text);
+                                        msg = parsed.detail || msg;
+                                    } else {
+                                        msg = err.response?.data?.detail || msg;
+                                    }
+                                } catch (e) { /* ignore parse error */ }
+                                toast.error(msg, { id: 'export' });
                             }
                         }}
                         style={{ display: 'flex', alignItems: 'center', gap: '8px' }}

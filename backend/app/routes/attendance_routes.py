@@ -555,7 +555,7 @@ async def get_all_student_attendance(admin=Depends(require_admin)):
         session_query["createdBy"] = admin["id"]
     total_sessions = await attendance_sessions_collection.count_documents(session_query)
 
-    student_filter = await _get_scoped_student_filter(admin)
+    student_filter = {}
     students = []
 
     cursor = students_collection.find(student_filter).sort("name", 1)

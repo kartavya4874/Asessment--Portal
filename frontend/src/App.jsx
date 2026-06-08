@@ -36,6 +36,7 @@ import MyAttendance from './pages/student/MyAttendance';
 import InstructorManagement from './pages/admin/InstructorManagement';
 import AdminDomains from './pages/admin/AdminDomains';
 import StudentDomains from './pages/student/StudentDomains';
+import QRScanner from './pages/student/QRScanner';
 
 // ─── Loading fallback ───────────────────────────────────
 function PageLoader() {
@@ -122,6 +123,7 @@ export default function App() {
                   <Route path="results" element={<MyResults />} />
                   <Route path="attendance" element={<MyAttendance />} />
                   <Route path="domains" element={<StudentDomains />} />
+                  <Route path="scan" element={<QRScanner />} />
                 </Route>
 
                 {/* Public Attendance Scan Route (student must be logged in) */}

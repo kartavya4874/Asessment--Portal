@@ -147,15 +147,28 @@ export default function AttendanceSessionDetail() {
                                 try {
                                     toast.loading('Generating Excel...', { id: 'export-session' });
                                     const res = await client.get(`/attendance/admin/export/session/${id}`, { responseType: 'blob' });
-                                    const url = window.URL.createObjectURL(new Blob([res.data]));
+                                    const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                                    const url = window.URL.createObjectURL(blob);
                                     const a = document.createElement('a');
                                     a.href = url;
                                     a.download = `Attendance_${session.title}.xlsx`.replace(/ /g, '_');
+                                    document.body.appendChild(a);
                                     a.click();
+                                    document.body.removeChild(a);
                                     window.URL.revokeObjectURL(url);
                                     toast.success('Excel downloaded!', { id: 'export-session' });
                                 } catch (err) {
-                                    toast.error('Export failed', { id: 'export-session' });
+                                    let msg = 'Export failed';
+                                    try {
+                                        if (err.response?.data instanceof Blob) {
+                                            const text = await err.response.data.text();
+                                            const parsed = JSON.parse(text);
+                                            msg = parsed.detail || msg;
+                                        } else {
+                                            msg = err.response?.data?.detail || msg;
+                                        }
+                                    } catch (e) { /* ignore */ }
+                                    toast.error(msg, { id: 'export-session' });
                                 }
                             }}
                             style={{ padding: '10px 18px', fontSize: '13px' }}

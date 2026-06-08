@@ -53,6 +53,7 @@ async def list_students(
     admin: dict = Depends(require_admin),
 ):
     """List students with optional program filter and search."""
+    from app.database import admins_collection, domains_collection
     query = {}
     if programId:
         query["programId"] = programId
@@ -63,14 +64,28 @@ async def list_students(
             {"email": {"$regex": search, "$options": "i"}},
         ]
 
-    # Scope by instructor's programs
+    # Scope: instructors see students enrolled in their allocated domains
     scoped_ids = await get_scoped_program_ids(admin)
     if scoped_ids is not None:
-        if programId:
-            if programId not in scoped_ids:
-                return []
+        # Not super admin — find domains allocated to this instructor
+        allocated_domains = []
+        async for d in domains_collection.find({"instructors": admin["id"]}):
+            allocated_domains.append(str(d["_id"]))
+
+        if allocated_domains:
+            # Show students enrolled in any of the instructor's domains
+            if "$or" in query:
+                # Merge with existing search $or by wrapping in $and
+                search_or = query.pop("$or")
+                query["$and"] = [
+                    {"$or": search_or},
+                    {"enrolledSubjects": {"$in": allocated_domains}},
+                ]
+            else:
+                query["enrolledSubjects"] = {"$in": allocated_domains}
         else:
-            query["programId"] = {"$in": scoped_ids}
+            # Instructor has no domain allocations — show nothing
+            return []
 
     students = []
     async for doc in students_collection.find(query).sort("rollNumber", 1):
