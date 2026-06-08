@@ -653,13 +653,17 @@ async def export_session_excel(session_id: str, admin=Depends(require_admin)):
             student = await students_collection.find_one({"_id": ObjectId(r["studentId"])})
         except Exception:
             pass
+        marked_at_val = r.get("markedAt", "")
+        if hasattr(marked_at_val, "strftime"):
+            marked_at_val = to_ist(marked_at_val)
+        
         records.append({
             "studentId": r["studentId"],
             "studentName": student.get("name") if student else "Unknown",
             "rollNumber": student.get("rollNumber") if student else "N/A",
             "email": student.get("email") if student else "N/A",
             "status": r.get("status", "present"),
-            "markedAt": r.get("markedAt", "").isoformat() if hasattr(r.get("markedAt", ""), "isoformat") else str(r.get("markedAt", "")),
+            "markedAt": marked_at_val.isoformat() if hasattr(marked_at_val, "isoformat") else str(marked_at_val),
         })
 
     # Build session student filter
@@ -726,13 +730,17 @@ async def export_all_attendance_excel(admin=Depends(require_admin)):
                 student = await students_collection.find_one({"_id": ObjectId(r["studentId"])})
             except Exception:
                 pass
+            marked_at_val = r.get("markedAt", "")
+            if hasattr(marked_at_val, "strftime"):
+                marked_at_val = to_ist(marked_at_val)
+            
             records.append({
                 "studentId": r["studentId"],
                 "studentName": student.get("name") if student else "Unknown",
                 "rollNumber": student.get("rollNumber") if student else "N/A",
                 "email": student.get("email") if student else "N/A",
                 "status": r.get("status", "present"),
-                "markedAt": r.get("markedAt", "").isoformat() if hasattr(r.get("markedAt", ""), "isoformat") else str(r.get("markedAt", "")),
+                "markedAt": marked_at_val.isoformat() if hasattr(marked_at_val, "isoformat") else str(marked_at_val),
             })
         
         session_date_val = s.get("date", "")
