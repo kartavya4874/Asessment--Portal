@@ -1,9 +1,30 @@
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
+const navItems = [
+    { path: '/student', label: 'Assessments', icon: '📝', exact: true },
+    { path: '/student/results', label: 'My Results', icon: '📊' },
+    { path: '/student/attendance', label: 'Attendance', icon: '📋' },
+    { path: '/student/scan', label: 'Scan QR', icon: '📱' },
+    { path: '/student/domains', label: 'Subject/Domain', icon: '🎯' },
+];
+
 export default function StudentLayout() {
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [collapsed, setCollapsed] = useState(window.innerWidth < 768);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+            if (window.innerWidth < 768) setCollapsed(true);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+    
     const { user, logout } = useAuth();
     const { theme, toggleTheme } = useTheme();
     const navigate = useNavigate();
@@ -14,22 +35,54 @@ export default function StudentLayout() {
     };
 
     return (
-        <div style={{ minHeight: '100vh' }}>
-            {/* Top Nav */}
-            <header className="glass" style={{
-                borderBottom: '1px solid var(--border)',
-                padding: '0 clamp(12px, 3vw, 32px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                minHeight: '60px',
-                position: 'sticky',
-                top: 0,
-                zIndex: 50,
-                flexWrap: 'wrap',
-                gap: '8px',
-            }}>
-                <div className="header-brand-nav" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', minHeight: '100vh' }}>
+            {/* Mobile Backdrop */}
+            <AnimatePresence>
+                {isMobile && !collapsed && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setCollapsed(true)}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.5)',
+                            zIndex: 90,
+                            backdropFilter: 'blur(4px)',
+                        }}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* Sidebar */}
+            <motion.aside
+                animate={{ 
+                    width: isMobile ? (collapsed ? 0 : 264) : (collapsed ? 72 : 264),
+                }}
+                transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="glass"
+                style={{
+                    borderRight: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    zIndex: 100,
+                }}
+            >
+                {/* Logo */}
+                <div style={{
+                    padding: collapsed ? '20px 16px' : '20px 24px',
+                    borderBottom: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    minHeight: '72px',
+                }}>
                     <motion.div
                         whileHover={{ scale: 1.1, rotate: 5 }}
                         style={{
@@ -43,167 +96,196 @@ export default function StudentLayout() {
                             alignItems: 'center',
                             justifyContent: 'center',
                             fontSize: '18px',
+                            flexShrink: 0,
                             boxShadow: '0 4px 15px var(--glow-primary)',
                         }}
                     >
                         🧪
                     </motion.div>
-                    <span style={{ fontWeight: 800, fontSize: '16px' }}>
-                        <span className="gradient-text">AI Lab</span> Portal
-                    </span>
-
-                    <nav style={{ display: 'flex', gap: '4px', marginLeft: '24px' }}>
-                        <NavLink
-                            to="/student"
-                            end
-                            style={({ isActive }) => ({
-                                padding: '10px 18px',
-                                borderRadius: '10px',
-                                fontSize: '14px',
-                                fontWeight: isActive ? 600 : 400,
-                                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                background: isActive
-                                    ? 'linear-gradient(135deg, rgba(124,108,240,0.12), rgba(78,168,222,0.08))'
-                                    : 'transparent',
-                                textDecoration: 'none',
-                                transition: 'all 0.25s',
-                                boxShadow: isActive ? '0 2px 12px var(--glow-primary)' : 'none',
-                                position: 'relative',
-                            })}
-                        >
-                            📝 Assessments
-                        </NavLink>
-                        <NavLink
-                            to="/student/results"
-                            style={({ isActive }) => ({
-                                padding: '10px 18px',
-                                borderRadius: '10px',
-                                fontSize: '14px',
-                                fontWeight: isActive ? 600 : 400,
-                                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                background: isActive
-                                    ? 'linear-gradient(135deg, rgba(124,108,240,0.12), rgba(78,168,222,0.08))'
-                                    : 'transparent',
-                                textDecoration: 'none',
-                                transition: 'all 0.25s',
-                                boxShadow: isActive ? '0 2px 12px var(--glow-primary)' : 'none',
-                            })}
-                        >
-                            📊 My Results
-                        </NavLink>
-                        <NavLink
-                            to="/student/attendance"
-                            style={({ isActive }) => ({
-                                padding: '10px 18px',
-                                borderRadius: '10px',
-                                fontSize: '14px',
-                                fontWeight: isActive ? 600 : 400,
-                                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                background: isActive
-                                    ? 'linear-gradient(135deg, rgba(124,108,240,0.12), rgba(78,168,222,0.08))'
-                                    : 'transparent',
-                                textDecoration: 'none',
-                                transition: 'all 0.25s',
-                                boxShadow: isActive ? '0 2px 12px var(--glow-primary)' : 'none',
-                            })}
-                        >
-                            📋 Attendance
-                        </NavLink>
-                        <NavLink
-                            to="/student/scan"
-                            style={({ isActive }) => ({
-                                padding: '10px 18px',
-                                borderRadius: '10px',
-                                fontSize: '14px',
-                                fontWeight: isActive ? 600 : 400,
-                                color: isActive ? '#fff' : 'var(--text-secondary)',
-                                background: isActive
-                                    ? 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))'
-                                    : 'transparent',
-                                textDecoration: 'none',
-                                transition: 'all 0.25s',
-                                boxShadow: isActive ? '0 2px 12px var(--glow-primary)' : 'none',
-                            })}
-                        >
-                            📱 Scan QR
-                        </NavLink>
-                        <NavLink
-                            to="/student/domains"
-                            style={({ isActive }) => ({
-                                padding: '10px 18px',
-                                borderRadius: '10px',
-                                fontSize: '14px',
-                                fontWeight: isActive ? 600 : 400,
-                                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                background: isActive
-                                    ? 'linear-gradient(135deg, rgba(124,108,240,0.12), rgba(78,168,222,0.08))'
-                                    : 'transparent',
-                                textDecoration: 'none',
-                                transition: 'all 0.25s',
-                                boxShadow: isActive ? '0 2px 12px var(--glow-primary)' : 'none',
-                            })}
-                        >
-                            🎯 Subject/Domain
-                        </NavLink>
-                    </nav>
+                    <AnimatePresence>
+                        {!collapsed && (
+                            <motion.div
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <div style={{ fontSize: '15px', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                                    <span className="gradient-text">AI Lab</span> Portal
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Student Portal</div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
 
-                <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    {/* Theme Toggle */}
-                    <motion.button
-                        onClick={toggleTheme}
-                        whileHover={{ scale: 1.1, rotate: 15 }}
-                        whileTap={{ scale: 0.9 }}
+                {/* Navigation */}
+                <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {navItems.map(item => (
+                        <NavLink
+                            key={item.path}
+                            to={item.path}
+                            end={item.exact}
+                            onClick={() => { if (isMobile) setCollapsed(true); }}
+                            style={({ isActive }) => ({
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '12px',
+                                padding: collapsed ? '12px 16px' : '12px 16px',
+                                borderRadius: '12px',
+                                fontSize: '14px',
+                                fontWeight: isActive ? 600 : 400,
+                                color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                background: isActive
+                                    ? 'linear-gradient(135deg, rgba(124,108,240,0.12), rgba(78,168,222,0.08))'
+                                    : 'transparent',
+                                textDecoration: 'none',
+                                transition: 'all 0.25s',
+                                whiteSpace: 'nowrap',
+                                position: 'relative',
+                                borderLeft: isActive ? '3px solid var(--accent-primary)' : '3px solid transparent',
+                                boxShadow: isActive ? '0 2px 12px var(--glow-primary)' : 'none',
+                            })}
+                        >
+                            <span style={{ fontSize: '18px', flexShrink: 0 }}>{item.icon}</span>
+                            <AnimatePresence>
+                                {!collapsed && (
+                                    <motion.span
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                    >
+                                        {item.label}
+                                    </motion.span>
+                                )}
+                            </AnimatePresence>
+                        </NavLink>
+                    ))}
+                </nav>
+
+                {/* Bottom */}
+                <div style={{ padding: '16px 12px', borderTop: '1px solid var(--border)' }}>
+                    <button
+                        onClick={() => setCollapsed(!collapsed)}
                         style={{
-                            width: '38px',
-                            height: '38px',
+                            width: '100%',
+                            padding: '10px',
                             borderRadius: '10px',
                             background: 'var(--surface)',
-                            color: 'var(--text-primary)',
+                            color: 'var(--text-secondary)',
+                            fontSize: '13px',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '18px',
+                            gap: '8px',
                             border: '1px solid var(--border)',
+                            marginBottom: '8px',
                             transition: 'all 0.2s',
                         }}
-                        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                    >
+                        {collapsed ? '→' : '← Collapse'}
+                    </button>
+                    {/* Theme Toggle */}
+                    <button
+                        onClick={toggleTheme}
+                        style={{
+                            width: '100%',
+                            padding: '10px',
+                            borderRadius: '10px',
+                            background: 'var(--surface)',
+                            color: 'var(--text-primary)',
+                            fontSize: '14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            border: '1px solid var(--border)',
+                            marginBottom: '16px',
+                            transition: 'all 0.2s',
+                        }}
                     >
                         {theme === 'dark' ? '☀️' : '🌙'}
-                    </motion.button>
+                        {!collapsed && (theme === 'dark' ? ' Light Mode' : ' Dark Mode')}
+                    </button>
 
+                    {/* User section */}
                     <div style={{
-                        display: 'flex', alignItems: 'center', gap: '12px',
-                        padding: '6px 14px 6px 6px', borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: collapsed ? '8px 4px' : '10px 14px',
+                        borderRadius: '12px',
                         background: 'linear-gradient(135deg, rgba(124,108,240,0.06), rgba(78,168,222,0.04))',
                         border: '1px solid rgba(124,108,240,0.1)',
                     }}>
                         <div style={{
-                            width: 32, height: 32, borderRadius: '8px',
+                            width: 34,
+                            height: 34,
+                            borderRadius: '10px',
                             background: 'linear-gradient(135deg, var(--gradient-start), var(--gradient-mid))',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '14px', boxShadow: '0 2px 8px var(--glow-primary)',
-                        }}>🎓</div>
-                        <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '13px', fontWeight: 600 }}>{user?.name}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{user?.rollNumber}</div>
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '14px',
+                            flexShrink: 0,
+                            boxShadow: '0 2px 10px var(--glow-primary)',
+                        }}>
+                            🎓
+                        </div>
+                        <AnimatePresence>
+                            {!collapsed && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    style={{ flex: 1, overflow: 'hidden' }}
+                                >
+                                    <div style={{ fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {user?.name}
+                                    </div>
+                                    <button
+                                        onClick={handleLogout}
+                                        style={{
+                                            fontSize: '12px',
+                                            color: 'var(--error)',
+                                            background: 'none',
+                                            padding: 0,
+                                            transition: 'opacity 0.2s',
+                                        }}
+                                    >
+                                        Logout
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
+            </motion.aside>
+
+            {/* Main Content */}
+            <main style={{
+                flex: 1,
+                marginLeft: isMobile ? 0 : (collapsed ? 72 : 264),
+                transition: 'margin-left 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                padding: 'clamp(16px, 3vw, 32px)',
+                maxWidth: '100%',
+                overflow: 'auto',
+                minHeight: '100vh',
+            }}>
+                {isMobile && (
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px', gap: '16px' }}>
+                        <button 
+                            onClick={() => setCollapsed(!collapsed)} 
+                            className="btn-secondary" 
+                            style={{ padding: '8px 12px', fontSize: '18px' }}
+                        >
+                            ☰
+                        </button>
+                        <div style={{ fontSize: '18px', fontWeight: 800 }}>
+                            <span className="gradient-text">AI Lab</span> Portal
                         </div>
                     </div>
-
-                    <motion.button
-                        onClick={handleLogout}
-                        className="btn-secondary"
-                        whileHover={{ scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        style={{ padding: '8px 18px', fontSize: '13px' }}
-                    >
-                        Logout
-                    </motion.button>
-                </div>
-            </header>
-
-            {/* Content */}
-            <main style={{ padding: 'clamp(16px, 3vw, 32px)', maxWidth: '1200px', margin: '0 auto' }}>
+                )}
                 <Outlet />
             </main>
         </div>
