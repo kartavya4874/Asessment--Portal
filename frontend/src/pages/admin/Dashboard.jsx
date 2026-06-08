@@ -5,6 +5,7 @@ import client from '../../api/client';
 import PageTransition from '../../components/ui/PageTransition';
 import { StaggerContainer, StaggerItem } from '../../components/ui/PageTransition';
 import { SkeletonCard } from '../../components/ui/SkeletonLoader';
+import { useAuth } from '../../context/AuthContext';
 
 const iconBg = [
     'linear-gradient(135deg, #7c6cf0, #9b8cf8)',
@@ -18,6 +19,8 @@ export default function AdminDashboard() {
     const navigate = useNavigate();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
+    const { user } = useAuth();
+    const isSuperAdmin = user?.adminRole === 'super_admin';
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -117,15 +120,17 @@ export default function AdminDashboard() {
                 >
                     <h2 style={{ fontSize: '20px', fontWeight: 700, marginBottom: '16px' }}>⚡ Quick Actions</h2>
                     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                        <motion.button
-                            onClick={() => navigate('/admin/programs')}
-                            className="btn-primary"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.97 }}
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-                        >
-                            ➕ Create Program
-                        </motion.button>
+                        {isSuperAdmin && (
+                            <motion.button
+                                onClick={() => navigate('/admin/programs')}
+                                className="btn-primary"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.97 }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                            >
+                                ➕ Create Program
+                            </motion.button>
+                        )}
                         <motion.button
                             onClick={() => navigate('/admin/assessments')}
                             className="btn-secondary"
