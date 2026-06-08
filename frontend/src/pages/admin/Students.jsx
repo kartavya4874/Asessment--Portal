@@ -7,6 +7,7 @@ import PageTransition from '../../components/ui/PageTransition';
 import { StaggerContainer, StaggerItem } from '../../components/ui/PageTransition';
 import { SkeletonTable } from '../../components/ui/SkeletonLoader';
 import { getErrorDetail } from '../../utils/errorHandler';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Students() {
     const [students, setStudents] = useState([]);
@@ -15,6 +16,8 @@ export default function Students() {
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+    const { user } = useAuth();
+    const isSuperAdmin = user?.adminRole === 'super_admin';
 
     // Modal state
     const [showModal, setShowModal] = useState(false);
@@ -129,9 +132,11 @@ export default function Students() {
                         <h1 style={{ fontSize: '28px', fontWeight: 700 }}>Students</h1>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>Manage student accounts</p>
                     </div>
-                    <motion.button className="btn-primary" onClick={openAddModal} whileHover={{ scale: 1.03 }}>
-                        ➕ Add Student
-                    </motion.button>
+                    {isSuperAdmin && (
+                        <motion.button className="btn-primary" onClick={openAddModal} whileHover={{ scale: 1.03 }}>
+                            ➕ Add Student
+                        </motion.button>
+                    )}
                 </div>
 
                 {/* Filters */}
@@ -172,7 +177,7 @@ export default function Students() {
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                                 <thead>
                                     <tr style={{ background: 'var(--bg-secondary)' }}>
-                                        {['Roll No', 'Name', 'Email', 'Program', 'Specialization', 'Year', 'Actions'].map(h => (
+                                        {['Roll No', 'Name', 'Email', 'Program', 'Specialization', 'Year', ...(isSuperAdmin ? ['Actions'] : [])].map(h => (
                                             <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                                         ))}
                                     </tr>
@@ -198,12 +203,14 @@ export default function Students() {
                                             </td>
                                             <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{student.specialization}</td>
                                             <td style={{ padding: '12px 16px' }}>{student.year}</td>
-                                            <td style={{ padding: '12px 16px' }}>
-                                                <div style={{ display: 'flex', gap: '6px' }}>
-                                                    <button className="btn-secondary" onClick={() => openEditModal(student)} style={{ padding: '5px 10px', fontSize: '12px' }}>✏️</button>
-                                                    <button className="btn-secondary" onClick={() => setShowDeleteConfirm(student)} style={{ padding: '5px 10px', fontSize: '12px', borderColor: 'var(--error)', color: 'var(--error)' }}>🗑️</button>
-                                                </div>
-                                            </td>
+                                            {isSuperAdmin && (
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                                        <button className="btn-secondary" onClick={() => openEditModal(student)} style={{ padding: '5px 10px', fontSize: '12px' }}>✏️</button>
+                                                        <button className="btn-secondary" onClick={() => setShowDeleteConfirm(student)} style={{ padding: '5px 10px', fontSize: '12px', borderColor: 'var(--error)', color: 'var(--error)' }}>🗑️</button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>

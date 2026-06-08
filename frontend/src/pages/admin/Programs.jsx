@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import client from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import PageTransition from '../../components/ui/PageTransition';
 import { StaggerContainer, StaggerItem } from '../../components/ui/PageTransition';
 import { SkeletonCard } from '../../components/ui/SkeletonLoader';
@@ -13,6 +14,8 @@ export default function Programs() {
     const [showForm, setShowForm] = useState(false);
     const [editingProgram, setEditingProgram] = useState(null);
     const [form, setForm] = useState({ name: '', years: '', specializations: '' });
+    const { user } = useAuth();
+    const isSuperAdmin = user?.adminRole === 'super_admin';
 
     const fetchPrograms = async () => {
         try {
@@ -94,9 +97,11 @@ export default function Programs() {
                         <h1 style={{ fontSize: '28px', fontWeight: 800 }}><span className="gradient-text">Programs</span></h1>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>Manage academic programs</p>
                     </div>
-                    <motion.button className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
-                        ➕ Add Program
-                    </motion.button>
+                    {isSuperAdmin && (
+                        <motion.button className="btn-primary" onClick={() => { resetForm(); setShowForm(true); }} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }}>
+                            ➕ Add Program
+                        </motion.button>
+                    )}
                 </div>
 
                 {/* Form Modal */}
@@ -192,10 +197,12 @@ export default function Programs() {
                                         </div>
                                     </div>
 
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <motion.button className="btn-secondary" onClick={() => handleEdit(program)} whileHover={{ scale: 1.03 }} style={{ flex: 1, padding: '10px', fontSize: '13px' }}>✏️ Edit</motion.button>
-                                        <motion.button className="btn-danger" onClick={() => handleDelete(program.id)} whileHover={{ scale: 1.03 }} style={{ padding: '10px 18px', fontSize: '13px' }}>🗑️</motion.button>
-                                    </div>
+                                    {isSuperAdmin && (
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <motion.button className="btn-secondary" onClick={() => handleEdit(program)} whileHover={{ scale: 1.03 }} style={{ flex: 1, padding: '10px', fontSize: '13px' }}>✏️ Edit</motion.button>
+                                            <motion.button className="btn-danger" onClick={() => handleDelete(program.id)} whileHover={{ scale: 1.03 }} style={{ padding: '10px 18px', fontSize: '13px' }}>🗑️</motion.button>
+                                        </div>
+                                    )}
                                 </motion.div>
                             </StaggerItem>
                         ))}

@@ -3,7 +3,7 @@ from typing import Optional
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from app.database import students_collection, programs_collection, submissions_collection
-from app.auth import require_admin, hash_password, get_scoped_program_ids
+from app.auth import require_admin, require_super_admin, hash_password, get_scoped_program_ids
 from pydantic import BaseModel, EmailStr
 from app.utils.email_service import email_service
 from app.config import get_settings
@@ -87,7 +87,7 @@ async def get_student(student_id: str, admin: dict = Depends(require_admin)):
 
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_student(data: AdminStudentCreate, admin: dict = Depends(require_admin)):
+async def create_student(data: AdminStudentCreate, admin: dict = Depends(require_super_admin)):
     """Admin creates a student account."""
     email = data.email.lower().strip()
     
@@ -100,15 +100,9 @@ async def create_student(data: AdminStudentCreate, admin: dict = Depends(require
     if existing_roll:
         raise HTTPException(status_code=400, detail="Roll number already registered")
 
-    # Verify program exists
     program = await programs_collection.find_one({"_id": ObjectId(data.programId)})
     if not program:
         raise HTTPException(status_code=400, detail="Invalid program")
-
-    # Ownership check
-    scoped_ids = await get_scoped_program_ids(admin)
-    if scoped_ids is not None and data.programId not in scoped_ids:
-        raise HTTPException(status_code=403, detail="You do not have access to this program")
 
     student_doc = {
         "name": data.name,
@@ -147,7 +141,7 @@ async def create_student(data: AdminStudentCreate, admin: dict = Depends(require
 async def update_student(
     student_id: str,
     data: AdminStudentUpdate,
-    admin: dict = Depends(require_admin),
+    admin: dict = Depends(require_super_admin),
 ):
     """Admin updates student details (roll number, program, specialization, etc.)."""
     doc = await students_collection.find_one({"_id": ObjectId(student_id)})
@@ -201,7 +195,7 @@ async def update_student(
 
 
 @router.delete("/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_student(student_id: str, admin: dict = Depends(require_admin)):
+async def delete_student(student_id: str, admin: dict = Depends(require_super_admin)):
     """Remove a student and their submissions."""
     result = await students_collection.delete_one({"_id": ObjectId(student_id)})
     if result.deleted_count == 0:
