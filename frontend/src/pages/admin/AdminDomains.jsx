@@ -309,7 +309,15 @@ export default function AdminDomains() {
                                                 </div>
                                             </div>
 
-                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                <motion.button
+                                                    className="btn-primary"
+                                                    onClick={() => window.location.href = `/admin/workspace/${domain.id}`}
+                                                    whileHover={{ scale: 1.03 }}
+                                                    style={{ flex: 1, padding: '10px', fontSize: '13px' }}
+                                                >
+                                                    📂 Workspace
+                                                </motion.button>
                                                 {isSuperAdmin && (
                                                     <>
                                                         <motion.button

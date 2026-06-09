@@ -63,12 +63,26 @@ async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
 
 async def require_super_admin(current_user: dict = Depends(get_current_user)) -> dict:
     """Only super_admin can access this endpoint."""
-    if current_user["role"] != "admin" or current_user.get("adminRole") != "super_admin":
+    if current_user["role"] != "admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Super Admin access required",
         )
-    return current_user
+        
+    if current_user.get("adminRole") == "super_admin":
+        return current_user
+        
+    # Check DB as fallback for the hardcoded email
+    from app.database import admins_collection
+    from bson import ObjectId
+    admin_doc = await admins_collection.find_one({"_id": ObjectId(current_user["id"])})
+    if admin_doc and admin_doc.get("email") == "admin@geetauniversity.edu.in":
+        return current_user
+        
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Super Admin access required",
+    )
 
 
 async def require_student(current_user: dict = Depends(get_current_user)) -> dict:

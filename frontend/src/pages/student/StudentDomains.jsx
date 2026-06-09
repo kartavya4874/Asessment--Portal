@@ -295,8 +295,17 @@ export default function StudentDomains() {
                                                         </p>
 
                                                         {isEnrolled ? (
-                                                            <div style={{ textAlign: 'center', padding: '10px', fontSize: '13px', color: 'var(--success)', fontWeight: 'bold' }}>
-                                                                Current Track
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                <div style={{ textAlign: 'center', padding: '10px', fontSize: '13px', color: 'var(--success)', fontWeight: 'bold' }}>
+                                                                    Current Track
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => window.location.href = `/student/workspace/${domain.id}`}
+                                                                    className="btn-primary"
+                                                                    style={{ width: '100%', padding: '10px', fontSize: '13px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+                                                                >
+                                                                    <span>📂</span> Go to Workspace
+                                                                </button>
                                                             </div>
                                                         ) : (
                                                             !profile.enrolledSubjects?.length && (

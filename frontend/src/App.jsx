@@ -38,6 +38,8 @@ import AdminDomains from './pages/admin/AdminDomains';
 import StudentDomains from './pages/student/StudentDomains';
 import QRScanner from './pages/student/QRScanner';
 
+import Workspace from './pages/shared/Workspace';
+
 // ─── Loading fallback ───────────────────────────────────
 function PageLoader() {
   return (
@@ -112,6 +114,7 @@ export default function App() {
                   <Route path="attendance/:id/qr" element={<AttendanceQRDisplay />} />
                   <Route path="instructors" element={<InstructorManagement />} />
                   <Route path="domains" element={<AdminDomains />} />
+                  <Route path="workspace/:domainId" element={<Workspace />} />
                 </Route>
 
                 {/* Student Routes */}
@@ -124,6 +127,7 @@ export default function App() {
                   <Route path="attendance" element={<MyAttendance />} />
                   <Route path="domains" element={<StudentDomains />} />
                   <Route path="scan" element={<QRScanner />} />
+                  <Route path="workspace/:domainId" element={<Workspace />} />
                 </Route>
 
                 {/* Public Attendance Scan Route (student must be logged in) */}

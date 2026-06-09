@@ -14,6 +14,7 @@ from app.routes.export_routes import router as export_router
 from app.routes.student_routes import router as student_router
 from app.routes.attendance_routes import router as attendance_router
 from app.routes.domain_routes import router as domain_router
+from app.routes.workspace_routes import router as workspace_router
 from fastapi.responses import JSONResponse
 from bson.errors import InvalidId
 
@@ -117,6 +118,7 @@ app.include_router(export_router)
 app.include_router(student_router)
 app.include_router(attendance_router)
 app.include_router(domain_router)
+app.include_router(workspace_router)
 
 
 @app.get("/", tags=["Health"])

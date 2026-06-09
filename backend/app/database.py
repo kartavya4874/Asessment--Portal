@@ -24,6 +24,7 @@ email_queue_collection = db["email_queue"]  # For rate-limited email delivery
 attendance_sessions_collection = db["attendance_sessions"]
 attendance_records_collection = db["attendance_records"]
 domains_collection = db["domains"]
+workspace_resources_collection = db["workspace_resources"]
 
 
 async def connect_db():
