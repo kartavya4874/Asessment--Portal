@@ -58,13 +58,24 @@ async def _count_records(session_id: str):
 
 
 async def _get_scoped_student_filter(admin: dict) -> dict:
-    """Build a MongoDB filter so instructors only see students from their own programs.
+    """Build a MongoDB filter so instructors only see students from their own programs/domains.
     Super admin sees all students (empty filter).
     """
-    scoped_ids = await get_scoped_program_ids(admin)
-    if scoped_ids is None:
+    if admin.get("adminRole") == "super_admin" or admin.get("email") == "admin@geetauniversity.edu.in":
         return {}  # super admin — no filter
-    return {"programId": {"$in": scoped_ids}}
+
+    from app.database import domains_collection
+    allocated_domains = []
+    async for d in domains_collection.find({"instructors": admin["id"]}):
+        allocated_domains.append(str(d["_id"]))
+        
+    if allocated_domains:
+        return {"enrolledSubjects": {"$in": allocated_domains}}
+
+    scoped_ids = await get_scoped_program_ids(admin)
+    if scoped_ids:
+        return {"programId": {"$in": scoped_ids}}
+    return {"_id": None}
 
 
 async def _get_total_students(student_filter: dict = None):
@@ -142,6 +153,16 @@ async def list_sessions(admin=Depends(require_admin)):
         session_dom_id = s.get("domainId")
         if session_dom_id:
             student_filter["enrolledSubjects"] = session_dom_id
+        else:
+            # Apply instructor domain scope if no session domain is explicitly selected
+            from app.database import admins_collection, domains_collection
+            creator_admin = await admins_collection.find_one({"_id": ObjectId(s["createdBy"])})
+            if creator_admin and creator_admin.get("adminRole") != "super_admin" and creator_admin.get("email") != "admin@geetauniversity.edu.in":
+                allocated_domains = []
+                async for d in domains_collection.find({"instructors": s["createdBy"]}):
+                    allocated_domains.append(str(d["_id"]))
+                if allocated_domains:
+                    student_filter["enrolledSubjects"] = {"$in": allocated_domains}
 
         session_total_students = await students_collection.count_documents(student_filter)
 
@@ -186,6 +207,16 @@ async def get_session_detail(session_id: str, admin=Depends(require_admin)):
     session_dom_id = session.get("domainId")
     if session_dom_id:
         student_filter["enrolledSubjects"] = session_dom_id
+    else:
+        # Apply instructor domain scope if no session domain explicitly selected
+        from app.database import admins_collection, domains_collection
+        creator_admin = await admins_collection.find_one({"_id": ObjectId(session["createdBy"])})
+        if creator_admin and creator_admin.get("adminRole") != "super_admin" and creator_admin.get("email") != "admin@geetauniversity.edu.in":
+            allocated_domains = []
+            async for d in domains_collection.find({"instructors": session["createdBy"]}):
+                allocated_domains.append(str(d["_id"]))
+            if allocated_domains:
+                student_filter["enrolledSubjects"] = {"$in": allocated_domains}
 
     # Build a set of scoped student IDs for filtering records
     scoped_student_ids = set()
@@ -340,6 +371,18 @@ async def mark_attendance(data: MarkAttendanceRequest, request: Request, student
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    now = datetime.now(IST)
+    
+    # Check if session is past its scheduled end time
+    scheduled_end = to_ist(session.get("scheduledEnd"))
+    if session.get("isActive") and scheduled_end and now > scheduled_end:
+        # Auto end session
+        await attendance_sessions_collection.update_one(
+            {"_id": ObjectId(session["_id"])},
+            {"$set": {"isActive": False, "sessionEnd": now, "qrToken": ""}}
+        )
+        session["isActive"] = False
+
     # Check if session is active
     if not session.get("isActive"):
         raise HTTPException(status_code=400, detail="This session is no longer active. Attendance window is closed.")
@@ -369,6 +412,22 @@ async def mark_attendance(data: MarkAttendanceRequest, request: Request, student
             status_code=403,
             detail="You are not enrolled in the subject/domain track required for this attendance session."
         )
+
+    # Restrict to instructor's allocated domains if no specific domain is set
+    if not session_dom_id:
+        from app.database import admins_collection, domains_collection
+        creator_admin = await admins_collection.find_one({"_id": ObjectId(session["createdBy"])})
+        if creator_admin and creator_admin.get("adminRole") != "super_admin" and creator_admin.get("email") != "admin@geetauniversity.edu.in":
+            allocated_domains = []
+            async for d in domains_collection.find({"instructors": session["createdBy"]}):
+                allocated_domains.append(str(d["_id"]))
+            if allocated_domains:
+                has_domain = any(d in student_doc.get("enrolledSubjects", []) for d in allocated_domains)
+                if not has_domain:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="You are not enrolled in the required subject/domain track for this instructor's session."
+                    )
 
     # Check if already marked
     existing = await attendance_records_collection.find_one({
@@ -453,8 +512,48 @@ async def get_my_attendance(student=Depends(require_student)):
 @router.get("/my/stats")
 async def get_my_stats(student=Depends(require_student)):
     """Get attendance statistics for the current student."""
-    # Total sessions
-    total_sessions = await attendance_sessions_collection.count_documents({})
+    student_doc = await students_collection.find_one({"_id": ObjectId(student["id"])})
+    if not student_doc:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    student_program = student_doc.get("programId")
+    student_domains = set(student_doc.get("enrolledSubjects", []))
+    
+    applicable_sessions = []
+    instructor_domains_cache = {}
+    from app.database import admins_collection, domains_collection
+    
+    # Filter sessions applicable to this student
+    session_cursor = attendance_sessions_collection.find().sort("date", 1)
+    async for session in session_cursor:
+        session_prog_id = session.get("programId")
+        if session_prog_id and session_prog_id != student_program:
+            continue
+            
+        session_dom_id = session.get("domainId")
+        if session_dom_id:
+            if session_dom_id not in student_domains:
+                continue
+        else:
+            creator_id = session.get("createdBy")
+            if creator_id not in instructor_domains_cache:
+                creator_admin = await admins_collection.find_one({"_id": ObjectId(creator_id)})
+                if creator_admin and creator_admin.get("adminRole") != "super_admin" and creator_admin.get("email") != "admin@geetauniversity.edu.in":
+                    alloc_domains = []
+                    async for d in domains_collection.find({"instructors": creator_id}):
+                        alloc_domains.append(str(d["_id"]))
+                    instructor_domains_cache[creator_id] = alloc_domains
+                else:
+                    instructor_domains_cache[creator_id] = []
+                    
+            creator_domains = instructor_domains_cache[creator_id]
+            if creator_domains:
+                if not any(d in student_domains for d in creator_domains):
+                    continue
+                    
+        applicable_sessions.append(str(session["_id"]))
+
+    total_sessions = len(applicable_sessions)
 
     # My attended sessions
     my_records = []
@@ -462,7 +561,8 @@ async def get_my_stats(student=Depends(require_student)):
         {"studentId": student["id"]}
     ).sort("markedAt", 1)
     async for r in cursor:
-        my_records.append(r)
+        if r["sessionId"] in applicable_sessions:
+            my_records.append(r)
 
     attended = len(my_records)
     present_count = sum(1 for r in my_records if r["status"] == "present")
@@ -472,19 +572,13 @@ async def get_my_stats(student=Depends(require_student)):
     # Calculate attendance percentage
     percentage = (attended / total_sessions * 100) if total_sessions > 0 else 0
 
-    # Calculate streaks
-    all_sessions = []
-    session_cursor = attendance_sessions_collection.find().sort("date", 1)
-    async for s in session_cursor:
-        all_sessions.append(str(s["_id"]))
-
     attended_session_ids = {r["sessionId"] for r in my_records}
 
     current_streak = 0
     longest_streak = 0
     streak = 0
 
-    for sid in all_sessions:
+    for sid in applicable_sessions:
         if sid in attended_session_ids:
             streak += 1
             longest_streak = max(longest_streak, streak)
@@ -493,7 +587,7 @@ async def get_my_stats(student=Depends(require_student)):
 
     # Current streak = streak from the latest session backwards
     current_streak = 0
-    for sid in reversed(all_sessions):
+    for sid in reversed(applicable_sessions):
         if sid in attended_session_ids:
             current_streak += 1
         else:
@@ -520,8 +614,8 @@ async def get_admin_stats(admin=Depends(require_admin)):
     if admin.get("adminRole") != "super_admin":
         session_query["createdBy"] = admin["id"]
 
-    # No program filter for attendance stats
-    student_filter = {}
+    # Apply instructor's domain scope for overall stats
+    student_filter = await _get_scoped_student_filter(admin)
 
     total_sessions = await attendance_sessions_collection.count_documents(session_query)
     total_students = await _get_total_students(student_filter)
@@ -563,7 +657,7 @@ async def get_all_student_attendance(admin=Depends(require_admin)):
         session_query["createdBy"] = admin["id"]
     total_sessions = await attendance_sessions_collection.count_documents(session_query)
 
-    student_filter = {}
+    student_filter = await _get_scoped_student_filter(admin)
     students = []
 
     cursor = students_collection.find(student_filter).sort("name", 1)
@@ -674,6 +768,15 @@ async def export_session_excel(session_id: str, admin=Depends(require_admin)):
     session_dom_id = session.get("domainId")
     if session_dom_id:
         student_filter["enrolledSubjects"] = session_dom_id
+    else:
+        from app.database import admins_collection, domains_collection
+        creator_admin = await admins_collection.find_one({"_id": ObjectId(session["createdBy"])})
+        if creator_admin and creator_admin.get("adminRole") != "super_admin" and creator_admin.get("email") != "admin@geetauniversity.edu.in":
+            allocated_domains = []
+            async for d in domains_collection.find({"instructors": session["createdBy"]}):
+                allocated_domains.append(str(d["_id"]))
+            if allocated_domains:
+                student_filter["enrolledSubjects"] = {"$in": allocated_domains}
 
     attended_ids = {r["studentId"] for r in records}
     absent_students = []

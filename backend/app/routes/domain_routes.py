@@ -117,50 +117,6 @@ async def register_student_domain_profile(
     return {"status": "success", "message": "Domain profile registered successfully"}
 
 
-@router.post("/{domain_id}/enroll", response_model=dict)
-async def enroll_domain(domain_id: str, student: dict = Depends(require_student)):
-    """Enroll logged in student to a domain/subject."""
-    # Verify student exists and is registered
-    student_doc = await students_collection.find_one({"_id": ObjectId(student["id"])})
-    if not student_doc:
-        raise HTTPException(status_code=404, detail="Student not found")
-
-    if not student_doc.get("domainRegistered", False):
-        raise HTTPException(
-            status_code=400,
-            detail="Please register your domain profile preferences before enrolling"
-        )
-
-    # Enforce maximum 1 domain track
-    if len(student_doc.get("enrolledSubjects", [])) >= 1 and domain_id not in student_doc.get("enrolledSubjects", []):
-        raise HTTPException(
-            status_code=400,
-            detail="You can only enroll in one subject/domain track. Please contact an administrator to change tracks."
-        )
-
-    # Verify domain exists
-    domain = await domains_collection.find_one({"_id": ObjectId(domain_id)})
-    if not domain:
-        raise HTTPException(status_code=404, detail="Domain/Subject not found")
-
-    # Add to enrolledSubjects if not already present
-    await students_collection.update_one(
-        {"_id": ObjectId(student["id"])},
-        {"$addToSet": {"enrolledSubjects": domain_id}}
-    )
-    return {"status": "success", "message": f"Enrolled in {domain['name']}"}
-
-
-@router.post("/{domain_id}/disenroll", response_model=dict)
-async def disenroll_domain(domain_id: str, student: dict = Depends(require_student)):
-    """Disenroll logged in student from a domain/subject."""
-    await students_collection.update_one(
-        {"_id": ObjectId(student["id"])},
-        {"$pull": {"enrolledSubjects": domain_id}}
-    )
-    return {"status": "success", "message": "Disenrolled successfully"}
-
-
 @router.post("/admin/enroll", response_model=dict)
 async def admin_enroll_student(
     data: AdminStudentEnrollPayload, admin: dict = Depends(require_super_admin)
@@ -210,6 +166,50 @@ async def admin_disenroll_student(
         {"$pull": {"enrolledSubjects": data.domainId}}
     )
     return {"status": "success", "message": "Student dis-enrolled successfully"}
+
+
+@router.post("/{domain_id}/enroll", response_model=dict)
+async def enroll_domain(domain_id: str, student: dict = Depends(require_student)):
+    """Enroll logged in student to a domain/subject."""
+    # Verify student exists and is registered
+    student_doc = await students_collection.find_one({"_id": ObjectId(student["id"])})
+    if not student_doc:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    if not student_doc.get("domainRegistered", False):
+        raise HTTPException(
+            status_code=400,
+            detail="Please register your domain profile preferences before enrolling"
+        )
+
+    # Enforce maximum 1 domain track
+    if len(student_doc.get("enrolledSubjects", [])) >= 1 and domain_id not in student_doc.get("enrolledSubjects", []):
+        raise HTTPException(
+            status_code=400,
+            detail="You can only enroll in one subject/domain track. Please contact an administrator to change tracks."
+        )
+
+    # Verify domain exists
+    domain = await domains_collection.find_one({"_id": ObjectId(domain_id)})
+    if not domain:
+        raise HTTPException(status_code=404, detail="Domain/Subject not found")
+
+    # Add to enrolledSubjects if not already present
+    await students_collection.update_one(
+        {"_id": ObjectId(student["id"])},
+        {"$addToSet": {"enrolledSubjects": domain_id}}
+    )
+    return {"status": "success", "message": f"Enrolled in {domain['name']}"}
+
+
+@router.post("/{domain_id}/disenroll", response_model=dict)
+async def disenroll_domain(domain_id: str, student: dict = Depends(require_student)):
+    """Disenroll logged in student from a domain/subject."""
+    await students_collection.update_one(
+        {"_id": ObjectId(student["id"])},
+        {"$pull": {"enrolledSubjects": domain_id}}
+    )
+    return {"status": "success", "message": "Disenrolled successfully"}
 
 
 @router.post("/{domain_id}/assign-instructors", response_model=dict)
