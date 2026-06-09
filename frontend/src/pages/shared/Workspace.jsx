@@ -55,9 +55,7 @@ export default function Workspace() {
                 formData.append('title', title);
                 formData.append('file', file);
                 
-                await client.post(`/workspaces/${domainId}/files`, formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' }
-                });
+                await client.post(`/workspaces/${domainId}/files`, formData);
             } else {
                 if (!content.trim()) return toast.error('Content/URL is required');
                 await client.post(`/workspaces/${domainId}/resources`, {

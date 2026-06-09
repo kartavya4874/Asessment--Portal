@@ -135,9 +135,13 @@ async def upload_workspace_file(
     unique_name = generate_unique_filename(file.filename)
     destination = f"workspaces/{domain_id}/{unique_name}"
     
-    url, path = await upload_file_to_firebase(
-        file_bytes, destination, file.content_type or "application/octet-stream"
-    )
+    try:
+        url, path = await upload_file_to_firebase(
+            file_bytes, destination, file.content_type or "application/octet-stream"
+        )
+    except Exception as e:
+        print(f"Firebase upload error: {e}")
+        raise HTTPException(status_code=500, detail=f"Firebase upload failed: {str(e)}")
     
     now = datetime.now(timezone.utc)
     doc = {
