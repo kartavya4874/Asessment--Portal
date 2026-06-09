@@ -71,7 +71,13 @@ export default function Workspace() {
             setShowForm(false);
             fetchData();
         } catch (err) {
-            toast.error(err.response?.data?.detail || 'Failed to add resource');
+            let msg = 'Failed to add resource';
+            if (err.response?.data?.detail) {
+                msg = typeof err.response.data.detail === 'string' 
+                    ? err.response.data.detail 
+                    : JSON.stringify(err.response.data.detail);
+            }
+            toast.error(msg);
         } finally {
             setUploading(false);
         }
