@@ -109,6 +109,7 @@ async def create_session(data: CreateSessionRequest, admin=Depends(require_admin
         "createdAt": now,
         "programId": data.programId if data.programId else None,
         "domainId": data.domainId if data.domainId else None,
+        "requireLocation": True,
     }
 
     result = await attendance_sessions_collection.insert_one(session_doc)
@@ -116,7 +117,8 @@ async def create_session(data: CreateSessionRequest, admin=Depends(require_admin
 
     # Build the QR URL
     frontend_url = settings.PORTAL_URL or settings.FRONTEND_URL.split(",")[0].strip()
-    qr_url = f"{frontend_url}/attendance/scan?session={session_id}&token={qr_token}"
+    req_loc = 1 if session_doc.get("requireLocation", True) else 0
+    qr_url = f"{frontend_url}/attendance/scan?session={session_id}&token={qr_token}&reqLoc={req_loc}"
 
     return {
         "id": session_id,
@@ -301,7 +303,8 @@ async def refresh_qr(session_id: str, admin=Depends(require_admin)):
     )
 
     frontend_url = settings.PORTAL_URL or settings.FRONTEND_URL.split(",")[0].strip()
-    qr_url = f"{frontend_url}/attendance/scan?session={session_id}&token={new_token}"
+    req_loc = 1 if session.get("requireLocation", True) else 0
+    qr_url = f"{frontend_url}/attendance/scan?session={session_id}&token={new_token}&reqLoc={req_loc}"
 
     counts = await _count_records(session_id)
 
@@ -339,6 +342,24 @@ async def end_session(session_id: str, admin=Depends(require_admin)):
         "presentCount": counts["present"],
         "lateCount": counts["late"],
     }
+
+@router.patch("/sessions/{session_id}/toggle-location")
+async def toggle_location(session_id: str, requireLocation: bool, admin=Depends(require_admin)):
+    """Toggle the location requirement for an active session."""
+    try:
+        session = await attendance_sessions_collection.find_one({"_id": ObjectId(session_id)})
+    except InvalidId:
+        raise HTTPException(status_code=400, detail="Invalid session ID")
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    await attendance_sessions_collection.update_one(
+        {"_id": ObjectId(session_id)},
+        {"$set": {"requireLocation": requireLocation}}
+    )
+    
+    return {"message": f"Location requirement set to {requireLocation}"}
 
 
 @router.delete("/sessions/{session_id}")

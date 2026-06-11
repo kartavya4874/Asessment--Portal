@@ -258,15 +258,24 @@ async def upload_assessment_files(
     if scoped_ids is not None and doc.get("programId") not in scoped_ids:
         raise HTTPException(status_code=403, detail="You do not have access to this assessment")
 
-    uploaded_files = []
-    for file in files:
-        file_bytes = await file.read()
-        unique_name = generate_unique_filename(file.filename)
-        destination = f"assessments/{assessment_id}/{unique_name}"
-        url, path = await upload_file_to_cloud(
-            file_bytes, destination, file.content_type or "application/octet-stream"
-        )
-        uploaded_files.append({"name": file.filename, "url": url, "path": path})
+    async def upload_single(file):
+        if not file.filename:
+            return None
+        try:
+            file_bytes = await file.read()
+            unique_name = generate_unique_filename(file.filename)
+            destination = f"assessments/{assessment_id}/{unique_name}"
+            url, path = await upload_file_to_cloud(
+                file_bytes, destination, file.content_type or "application/octet-stream"
+            )
+            return {"name": file.filename, "url": url, "path": path}
+        except Exception as e:
+            print(f"Cloud storage upload error: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to upload {file.filename}: {str(e)}")
+
+    tasks = [upload_single(f) for f in files]
+    results = await asyncio.gather(*tasks)
+    uploaded_files = [res for res in results if res is not None]
 
     await assessments_collection.update_one(
         {"_id": ObjectId(assessment_id)},

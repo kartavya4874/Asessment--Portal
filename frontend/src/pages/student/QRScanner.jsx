@@ -46,6 +46,11 @@ export default function QRScanner() {
         setErrorMessage('');
         processingRef.current = false;
 
+        // Open camera immediately, geolocation check happens AFTER scanning the QR code
+        await initializeCamera();
+    }, []);
+
+    const initializeCamera = async () => {
         // Dynamically import to avoid SSR issues
         const { Html5Qrcode } = await import('html5-qrcode');
 
@@ -55,13 +60,18 @@ export default function QRScanner() {
             scannerRef.current = scanner;
 
             const config = {
-                fps: 10,
+                fps: 5, // Lowered to fix lag issues
                 qrbox: (viewfinderWidth, viewfinderHeight) => {
                     const size = Math.min(viewfinderWidth, viewfinderHeight) * 0.7;
                     return { width: Math.floor(size), height: Math.floor(size) };
                 },
                 aspectRatio: 1.0,
                 disableFlip: false,
+                videoConstraints: {
+                    facingMode: 'environment',
+                    width: { ideal: 640 }, // Lower resolution to prevent lagging
+                    height: { ideal: 640 }
+                }
             };
 
             await scanner.start(
@@ -75,40 +85,112 @@ export default function QRScanner() {
                         const url = new URL(decodedText);
                         const sessionId = url.searchParams.get('session');
                         const qrToken = url.searchParams.get('token');
+                        const reqLoc = url.searchParams.get('reqLoc');
 
                         if (!sessionId || !qrToken) {
                             if (mountedRef.current) {
-                                setErrorMessage('Invalid QR code format. Not an attendance QR.');
+                                setErrorMessage('Invalid QR code format.');
                                 setResult({ status: 'error' });
                             }
                             stopScannerSilent();
                             return;
                         }
 
-                        try {
-                            // Get or generate a persistent device ID to prevent proxy attendance
-                            let deviceId = localStorage.getItem('deviceId');
-                            if (!deviceId) {
-                                deviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
-                                localStorage.setItem('deviceId', deviceId);
+                        const processAttendance = async () => {
+                            try {
+                                const generateFingerprint = () => {
+                                    try {
+                                        const canvas = document.createElement('canvas');
+                                        const ctx = canvas.getContext('2d');
+                                        ctx.textBaseline = 'top';
+                                        ctx.font = '14px Arial';
+                                        ctx.fillStyle = '#f60';
+                                        ctx.fillRect(125,1,62,20);
+                                        ctx.fillStyle = '#069';
+                                        ctx.fillText('Geeta_Univ', 2, 15);
+                                        
+                                        const b64 = canvas.toDataURL();
+                                        let hash = 0;
+                                        for (let i = 0; i < b64.length; i++) {
+                                            hash = ((hash << 5) - hash) + b64.charCodeAt(i);
+                                            hash = hash & hash;
+                                        }
+                                        return 'fp_' + Math.abs(hash).toString(16);
+                                    } catch (e) {
+                                        return 'dev_' + Math.random().toString(36).substr(2, 9);
+                                    }
+                                };
+
+                                let deviceId = localStorage.getItem('deviceId');
+                                if (!deviceId) {
+                                    deviceId = generateFingerprint();
+                                    localStorage.setItem('deviceId', deviceId);
+                                }
+
+                                const res = await client.post('/attendance/mark', { sessionId, qrToken, deviceId });
+                                if (mountedRef.current) {
+                                    setResult({ status: 'success', data: res.data });
+                                    toast.success('Attendance marked! ✅');
+                                }
+                            } catch (err) {
+                                if (mountedRef.current) {
+                                    const detail = err.response?.data?.detail || 'Failed to mark attendance';
+                                    setErrorMessage(detail);
+                                    setResult({ status: detail.toLowerCase().includes('already') ? 'already' : 'error' });
+                                }
+                            }
+                            stopScannerSilent();
+                        };
+
+                        if (reqLoc === '0') {
+                            await processAttendance();
+                        } else {
+                            const TARGET_LAT = 29.3005958; 
+                            const TARGET_LNG = 76.8953859;
+                            const MAX_DISTANCE_METERS = 1000;
+
+                            const getDistance = (lat1, lon1, lat2, lon2) => {
+                                const R = 6371e3;
+                                const p1 = lat1 * Math.PI / 180;
+                                const p2 = lat2 * Math.PI / 180;
+                                const dp = (lat2 - lat1) * Math.PI / 180;
+                                const dl = (lon2 - lon1) * Math.PI / 180;
+                                const a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+                                return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                            };
+
+                            if (!navigator.geolocation) {
+                                setErrorMessage('Geolocation not supported.');
+                                setResult({ status: 'error' });
+                                stopScannerSilent();
+                                return;
                             }
 
-                            const res = await client.post('/attendance/mark', { sessionId, qrToken, deviceId });
-                            if (mountedRef.current) {
-                                setResult({ status: 'success', data: res.data });
-                                toast.success('Attendance marked! ✅');
-                            }
-                        } catch (err) {
-                            if (mountedRef.current) {
-                                const detail = err.response?.data?.detail || 'Failed to mark attendance';
-                                setErrorMessage(detail);
-                                setResult({ status: detail.toLowerCase().includes('already') ? 'already' : 'error' });
-                            }
+                            toast.loading('Verifying location...', { id: 'geoToast' });
+                            navigator.geolocation.getCurrentPosition(
+                                async (position) => {
+                                    toast.dismiss('geoToast');
+                                    const dist = getDistance(position.coords.latitude, position.coords.longitude, TARGET_LAT, TARGET_LNG);
+                                    if (dist > MAX_DISTANCE_METERS) {
+                                        setErrorMessage(`You are not within the university campus. Distance: ${Math.round(dist)} meters.`);
+                                        setResult({ status: 'error' });
+                                        stopScannerSilent();
+                                        return;
+                                    }
+                                    await processAttendance();
+                                },
+                                (error) => {
+                                    toast.dismiss('geoToast');
+                                    setErrorMessage('Location permission denied.');
+                                    setResult({ status: 'error' });
+                                    stopScannerSilent();
+                                },
+                                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                            );
                         }
-                        stopScannerSilent();
                     } catch (e) {
                         if (mountedRef.current) {
-                            setErrorMessage('This QR code is not a valid attendance code.');
+                            setErrorMessage('Invalid QR code.');
                             setResult({ status: 'error' });
                         }
                         stopScannerSilent();
@@ -156,7 +238,7 @@ export default function QRScanner() {
                 }
             }
         }
-    }, []);
+    };
 
     const applyZoom = useCallback(async (val) => {
         const parsedVal = Math.max(zoomCapabilities.min, Math.min(zoomCapabilities.max, parseFloat(val)));

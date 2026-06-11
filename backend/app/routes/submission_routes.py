@@ -109,8 +109,10 @@ async def create_or_update_submission(
     # Upload files
     uploaded_files = []
     if files:
-        for file in files:
-            if file.filename:
+        async def upload_single(file):
+            if not file.filename:
+                return None
+            try:
                 file_bytes = await file.read()
                 unique_name = generate_unique_filename(file.filename)
                 destination = f"submissions/{student['id']}/{assessmentId}/{unique_name}"
@@ -119,8 +121,14 @@ async def create_or_update_submission(
                     destination,
                     file.content_type or "application/octet-stream",
                 )
-                uploaded_files.append({"name": file.filename, "url": url, "path": path})
+                return {"name": file.filename, "url": url, "path": path}
+            except Exception as e:
+                print(f"Cloud storage upload error: {e}")
+                raise HTTPException(status_code=500, detail=f"Failed to upload {file.filename}: {str(e)}")
 
+        tasks = [upload_single(f) for f in files]
+        results = await asyncio.gather(*tasks)
+        uploaded_files = [res for res in results if res is not None]
     # Check if submission exists (upsert)
     existing = await submissions_collection.find_one(
         {"assessmentId": assessmentId, "studentId": student["id"]}

@@ -99,6 +99,21 @@ export default function AttendanceQRDisplay() {
         }
     };
 
+    const toggleLocation = async () => {
+        try {
+            const newStatus = !session.requireLocation;
+            await client.patch(`/attendance/sessions/${id}/toggle-location`, null, {
+                params: { requireLocation: newStatus }
+            });
+            setSession(prev => ({ ...prev, requireLocation: newStatus }));
+            toast.success(`Geofencing ${newStatus ? 'Enabled' : 'Disabled'}`);
+            // Force an immediate QR refresh to update the reqLoc parameter
+            refreshQR();
+        } catch (err) {
+            toast.error('Failed to update location requirement');
+        }
+    };
+
     if (loading) {
         return (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
@@ -297,6 +312,15 @@ export default function AttendanceQRDisplay() {
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+                <motion.button
+                    className="btn-secondary"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={toggleLocation}
+                    style={{ padding: '10px 20px', fontSize: '14px', background: session?.requireLocation ? 'var(--bg-secondary)' : 'rgba(255,100,100,0.1)', color: session?.requireLocation ? 'var(--text-primary)' : 'var(--error)' }}
+                >
+                    {session?.requireLocation ? '📍 Geofencing: ON' : '🔓 Geofencing: OFF'}
+                </motion.button>
                 <motion.button
                     className="btn-secondary"
                     whileHover={{ scale: 1.03 }}
