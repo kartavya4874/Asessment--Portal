@@ -86,7 +86,14 @@ export default function QRScanner() {
                         }
 
                         try {
-                            const res = await client.post('/attendance/mark', { sessionId, qrToken });
+                            // Get or generate a persistent device ID to prevent proxy attendance
+                            let deviceId = localStorage.getItem('deviceId');
+                            if (!deviceId) {
+                                deviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+                                localStorage.setItem('deviceId', deviceId);
+                            }
+
+                            const res = await client.post('/attendance/mark', { sessionId, qrToken, deviceId });
                             if (mountedRef.current) {
                                 setResult({ status: 'success', data: res.data });
                                 toast.success('Attendance marked! ✅');

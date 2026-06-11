@@ -25,6 +25,7 @@ class CreateSessionRequest(BaseModel):
 class MarkAttendanceRequest(BaseModel):
     sessionId: str
     qrToken: str
+    deviceId: Optional[str] = None
 
 
 # ─── Response Models ───────────────────────────────────────
