@@ -9,8 +9,11 @@ class Settings(BaseSettings):
     JWT_SECRET: str = "dev-secret-key"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRE_MINUTES: int = 1440
-    FIREBASE_CREDENTIALS_PATH: str = "./firebase-credentials.json"
-    FIREBASE_STORAGE_BUCKET: str = ""
+    CLOUDFLARE_R2_ACCOUNT_ID: str = ""
+    CLOUDFLARE_R2_ACCESS_KEY_ID: str = ""
+    CLOUDFLARE_R2_SECRET_ACCESS_KEY: str = ""
+    CLOUDFLARE_R2_BUCKET: str = ""
+    CLOUDFLARE_R2_PUBLIC_URL: str = ""
     DEV_MODE: bool = True
     FRONTEND_URL: str = "http://localhost:5173,https://assessments.kartavyabaluja.in"
     # URL used in email links — always points to the live production domain
@@ -44,6 +47,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 @lru_cache()

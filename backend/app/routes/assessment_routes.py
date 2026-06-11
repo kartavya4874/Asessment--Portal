@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File,
 from app.database import assessments_collection, programs_collection, students_collection, submissions_collection
 from app.auth import require_admin, get_current_user, get_scoped_program_ids, build_program_filter
 from app.models.assessment import AssessmentCreate, AssessmentUpdate, AssessmentResponse
-from app.firebase_storage import upload_file_to_firebase, generate_unique_filename, generate_signed_url
+from app.cloud_storage import upload_file_to_cloud, generate_unique_filename, generate_signed_url
 from app.utils.email_service import email_service
 from app.config import get_settings
 
@@ -263,7 +263,7 @@ async def upload_assessment_files(
         file_bytes = await file.read()
         unique_name = generate_unique_filename(file.filename)
         destination = f"assessments/{assessment_id}/{unique_name}"
-        url, path = await upload_file_to_firebase(
+        url, path = await upload_file_to_cloud(
             file_bytes, destination, file.content_type or "application/octet-stream"
         )
         uploaded_files.append({"name": file.filename, "url": url, "path": path})

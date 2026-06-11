@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File,
 from app.database import submissions_collection, assessments_collection, students_collection
 from app.auth import require_student, require_admin, get_current_user
 from app.models.submission import SubmissionCreate, SubmissionResponse
-from app.firebase_storage import upload_file_to_firebase, generate_unique_filename, generate_signed_url
+from app.cloud_storage import upload_file_to_cloud, generate_unique_filename, generate_signed_url
 
 router = APIRouter(prefix="/submissions", tags=["Submissions"])
 
@@ -114,7 +114,7 @@ async def create_or_update_submission(
                 file_bytes = await file.read()
                 unique_name = generate_unique_filename(file.filename)
                 destination = f"submissions/{student['id']}/{assessmentId}/{unique_name}"
-                url, path = await upload_file_to_firebase(
+                url, path = await upload_file_to_cloud(
                     file_bytes,
                     destination,
                     file.content_type or "application/octet-stream",

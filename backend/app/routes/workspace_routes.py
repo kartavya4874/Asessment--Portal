@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File,
 from app.database import domains_collection, students_collection, workspace_resources_collection, admins_collection
 from app.auth import get_current_user
 from app.models.workspace import WorkspaceResourceCreate, WorkspaceResourceResponse
-from app.firebase_storage import upload_file_to_firebase, generate_unique_filename, generate_signed_url
+from app.cloud_storage import upload_file_to_cloud, generate_unique_filename, generate_signed_url
 import asyncio
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
@@ -136,12 +136,12 @@ async def upload_workspace_file(
     destination = f"workspaces/{domain_id}/{unique_name}"
     
     try:
-        url, path = await upload_file_to_firebase(
+        url, path = await upload_file_to_cloud(
             file_bytes, destination, file.content_type or "application/octet-stream"
         )
     except Exception as e:
-        print(f"Firebase upload error: {e}")
-        raise HTTPException(status_code=500, detail=f"Firebase upload failed: {str(e)}")
+        print(f"Cloud storage upload error: {e}")
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
     
     now = datetime.now(timezone.utc)
     doc = {
@@ -191,7 +191,7 @@ async def delete_workspace_resource(
     if current_user["role"] == "student" and resource.get("uploadedBy") != current_user["id"]:
         raise HTTPException(status_code=403, detail="You can only delete your own resources")
         
-    # We could optionally delete the file from Firebase Storage here if needed,
-    # but currently upload_file_to_firebase logic is primarily additive.
+    # We could optionally delete the file from Cloud Storage here if needed,
+    # but currently upload_file_to_cloud logic is primarily additive.
     
     await workspace_resources_collection.delete_one({"_id": ObjectId(resource_id)})
