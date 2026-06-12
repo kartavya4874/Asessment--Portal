@@ -463,21 +463,9 @@ async def mark_attendance(data: MarkAttendanceRequest, request: Request, student
 
     now = datetime.now(IST)
 
-    # Check for proxy attendance (same device within 10 minutes)
-    if data.deviceId:
-        ten_minutes_ago = now - timedelta(minutes=10)
-        recent_device_record = await attendance_records_collection.find_one({
-            "deviceId": data.deviceId,
-            "studentId": {"$ne": student["id"]},
-            "markedAt": {"$gte": ten_minutes_ago}
-        })
-        if recent_device_record:
-            raise HTTPException(
-                status_code=403,
-                detail="Proxy Attendance Detected! This device was recently used to mark attendance for another student. Please wait 10 minutes."
-            )
 
     # Determine if late
+
     session_start = to_ist(session["sessionStart"])
 
     minutes_diff = (now - session_start).total_seconds() / 60

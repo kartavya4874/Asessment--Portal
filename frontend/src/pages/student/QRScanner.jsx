@@ -98,36 +98,7 @@ export default function QRScanner() {
 
                         const processAttendance = async () => {
                             try {
-                                const generateFingerprint = () => {
-                                    try {
-                                        const canvas = document.createElement('canvas');
-                                        const ctx = canvas.getContext('2d');
-                                        ctx.textBaseline = 'top';
-                                        ctx.font = '14px Arial';
-                                        ctx.fillStyle = '#f60';
-                                        ctx.fillRect(125,1,62,20);
-                                        ctx.fillStyle = '#069';
-                                        ctx.fillText('Geeta_Univ', 2, 15);
-                                        
-                                        const b64 = canvas.toDataURL();
-                                        let hash = 0;
-                                        for (let i = 0; i < b64.length; i++) {
-                                            hash = ((hash << 5) - hash) + b64.charCodeAt(i);
-                                            hash = hash & hash;
-                                        }
-                                        return 'fp_' + Math.abs(hash).toString(16);
-                                    } catch (e) {
-                                        return 'dev_' + Math.random().toString(36).substr(2, 9);
-                                    }
-                                };
-
-                                let deviceId = localStorage.getItem('deviceId');
-                                if (!deviceId) {
-                                    deviceId = generateFingerprint();
-                                    localStorage.setItem('deviceId', deviceId);
-                                }
-
-                                const res = await client.post('/attendance/mark', { sessionId, qrToken, deviceId });
+                                const res = await client.post('/attendance/mark', { sessionId, qrToken });
                                 if (mountedRef.current) {
                                     setResult({ status: 'success', data: res.data });
                                     toast.success('Attendance marked! ✅');
@@ -142,52 +113,7 @@ export default function QRScanner() {
                             stopScannerSilent();
                         };
 
-                        if (reqLoc === '0') {
-                            await processAttendance();
-                        } else {
-                            const TARGET_LAT = 29.3005958; 
-                            const TARGET_LNG = 76.8953859;
-                            const MAX_DISTANCE_METERS = 1000;
-
-                            const getDistance = (lat1, lon1, lat2, lon2) => {
-                                const R = 6371e3;
-                                const p1 = lat1 * Math.PI / 180;
-                                const p2 = lat2 * Math.PI / 180;
-                                const dp = (lat2 - lat1) * Math.PI / 180;
-                                const dl = (lon2 - lon1) * Math.PI / 180;
-                                const a = Math.sin(dp / 2) * Math.sin(dp / 2) + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
-                                return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                            };
-
-                            if (!navigator.geolocation) {
-                                setErrorMessage('Geolocation not supported.');
-                                setResult({ status: 'error' });
-                                stopScannerSilent();
-                                return;
-                            }
-
-                            toast.loading('Verifying location...', { id: 'geoToast' });
-                            navigator.geolocation.getCurrentPosition(
-                                async (position) => {
-                                    toast.dismiss('geoToast');
-                                    const dist = getDistance(position.coords.latitude, position.coords.longitude, TARGET_LAT, TARGET_LNG);
-                                    if (dist > MAX_DISTANCE_METERS) {
-                                        setErrorMessage(`You are not within the university campus. Distance: ${Math.round(dist)} meters.`);
-                                        setResult({ status: 'error' });
-                                        stopScannerSilent();
-                                        return;
-                                    }
-                                    await processAttendance();
-                                },
-                                (error) => {
-                                    toast.dismiss('geoToast');
-                                    setErrorMessage('Location permission denied.');
-                                    setResult({ status: 'error' });
-                                    stopScannerSilent();
-                                },
-                                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                            );
-                        }
+                        await processAttendance();
                     } catch (e) {
                         if (mountedRef.current) {
                             setErrorMessage('Invalid QR code.');
