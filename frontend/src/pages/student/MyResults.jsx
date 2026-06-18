@@ -19,9 +19,8 @@ export default function MyResults() {
     useEffect(() => {
         const fetch = async () => {
             try {
-                const { data: assessmentList } = await client.get('/assessments', {
-                    params: { programId: user.programId },
-                });
+                // Backend handles domain-based scoping for students
+                const { data: assessmentList } = await client.get('/assessments');
                 setAssessments(assessmentList);
 
                 const resultsMap = {};
@@ -38,7 +37,7 @@ export default function MyResults() {
             finally { setLoading(false); }
         };
         fetch();
-    }, [user.programId]);
+    }, []);
 
     // Summary stats
     let totalMarks = 0, totalMaxMarks = 0, gradedCount = 0;

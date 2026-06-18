@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 from typing import Optional, List
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File, Form
-from app.database import assessments_collection, programs_collection, students_collection, submissions_collection
-from app.auth import require_admin, get_current_user, get_scoped_program_ids, build_program_filter
+from app.database import assessments_collection, programs_collection, students_collection, submissions_collection, domains_collection
+from app.auth import require_admin, get_current_user, get_scoped_domain_ids, get_scoped_program_ids, build_program_filter
 from app.models.assessment import AssessmentCreate, AssessmentUpdate, AssessmentResponse
 from app.cloud_storage import upload_file_to_cloud, generate_unique_filename, generate_signed_url
 from app.utils.email_service import email_service
@@ -57,6 +57,7 @@ async def assessment_doc_to_response(doc: dict) -> dict:
     return {
         "id": str(doc["_id"]),
         "programId": doc.get("programId", ""),
+        "domainId": doc.get("domainId", None),
         "title": doc.get("title", ""),
         "description": doc.get("description", ""),
         "attachedFiles": attached_files,
@@ -73,22 +74,53 @@ async def assessment_doc_to_response(doc: dict) -> dict:
 @router.get("", response_model=list)
 async def list_assessments(
     programId: Optional[str] = None,
+    domainId: Optional[str] = None,
     current_user: dict = Depends(get_current_user),
 ):
     query = {}
     if programId:
         query["programId"] = programId
+    if domainId:
+        query["domainId"] = domainId
 
-    # Scope by instructor's programs
+    # Scope by role
     if current_user["role"] == "admin":
-        scoped_ids = await get_scoped_program_ids(current_user)
-        if scoped_ids is not None:
-            if programId:
-                # Verify the requested program is in scope
-                if programId not in scoped_ids:
-                    return []
+        scoped_domain_ids = await get_scoped_domain_ids(current_user)
+        if scoped_domain_ids is not None:
+            # Instructor: only see assessments they created
+            query["createdBy"] = current_user["id"]
+
+    elif current_user["role"] == "student":
+        # Students see assessments for domains they are enrolled in
+        student_doc = await students_collection.find_one({"_id": ObjectId(current_user["id"])})
+        if student_doc:
+            enrolled_domains = student_doc.get("enrolledSubjects", [])
+            if enrolled_domains:
+                # Show assessments that match student's program OR their enrolled domain
+                domain_filter = {"domainId": {"$in": enrolled_domains}}
+                if programId:
+                    # Already filtered by programId, add domain filter
+                    query["$or"] = [
+                        {"programId": programId, "domainId": {"$exists": False}},
+                        {"programId": programId, "domainId": None},
+                        {"domainId": {"$in": enrolled_domains}},
+                    ]
+                    # Remove the simple programId key since we're using $or
+                    query.pop("programId", None)
+                else:
+                    # No programId filter — show assessments for enrolled domains
+                    # OR assessments for the student's program that have no domain set (legacy)
+                    student_program_id = student_doc.get("programId", "")
+                    query["$or"] = [
+                        {"programId": student_program_id, "domainId": {"$exists": False}},
+                        {"programId": student_program_id, "domainId": None},
+                        {"domainId": {"$in": enrolled_domains}},
+                    ]
             else:
-                query["programId"] = {"$in": scoped_ids}
+                # Student not enrolled in any domain — only show legacy program-based assessments
+                if not programId:
+                    student_program_id = student_doc.get("programId", "")
+                    query["programId"] = student_program_id
 
     docs = await assessments_collection.find(query).sort("createdAt", -1).to_list(length=None)
     assessments = list(await asyncio.gather(*[assessment_doc_to_response(doc) for doc in docs]))
@@ -112,10 +144,16 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
     if not program:
         raise HTTPException(status_code=400, detail="Invalid program")
 
-    # Ownership check: instructors can only create assessments in their programs
-    scoped_ids = await get_scoped_program_ids(admin)
-    if scoped_ids is not None and data.programId not in scoped_ids:
-        raise HTTPException(status_code=403, detail="You do not have access to this program")
+    # If domainId is provided, verify domain exists
+    if data.domainId:
+        domain = await domains_collection.find_one({"_id": ObjectId(data.domainId)})
+        if not domain:
+            raise HTTPException(status_code=400, detail="Invalid domain/course")
+        
+        # Ownership check: instructors can only create assessments for their assigned domains
+        scoped_domain_ids = await get_scoped_domain_ids(admin)
+        if scoped_domain_ids is not None and data.domainId not in scoped_domain_ids:
+            raise HTTPException(status_code=403, detail="You do not have access to this course/domain")
 
     if data.deadline <= data.startAt:
         raise HTTPException(status_code=400, detail="Deadline must be after start time")
@@ -125,6 +163,7 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
 
     assessment_doc = {
         "programId": data.programId,
+        "domainId": data.domainId,
         "title": data.title,
         "description": data.description,
         "attachedFiles": [],
@@ -141,7 +180,13 @@ async def create_assessment(data: AssessmentCreate, admin: dict = Depends(requir
     
     # 📧 Send "Scheduled" and potentially "Open" Emails to enrolled students
     if settings.EMAIL_ENABLED:
-        students = await students_collection.find({"programId": data.programId}).to_list(length=None)
+        # If domain is set, email students enrolled in that domain; otherwise fall back to program
+        if data.domainId:
+            students = await students_collection.find(
+                {"enrolledSubjects": data.domainId}
+            ).to_list(length=None)
+        else:
+            students = await students_collection.find({"programId": data.programId}).to_list(length=None)
         
         # Calculate derived fields for emails
         date_str = data.startAt.strftime("%B %d, %Y")
@@ -198,9 +243,9 @@ async def update_assessment(
     if not doc:
         raise HTTPException(status_code=404, detail="Assessment not found")
 
-    # Ownership check
-    scoped_ids = await get_scoped_program_ids(admin)
-    if scoped_ids is not None and doc.get("programId") not in scoped_ids:
+    # Ownership check: instructors can only edit their own assessments
+    scoped_domain_ids = await get_scoped_domain_ids(admin)
+    if scoped_domain_ids is not None and doc.get("createdBy") != admin["id"]:
         raise HTTPException(status_code=403, detail="You do not have access to this assessment")
 
     if doc.get("isLocked"):
@@ -226,9 +271,9 @@ async def delete_assessment(assessment_id: str, admin: dict = Depends(require_ad
     if not doc:
         raise HTTPException(status_code=404, detail="Assessment not found")
 
-    # Ownership check
-    scoped_ids = await get_scoped_program_ids(admin)
-    if scoped_ids is not None and doc.get("programId") not in scoped_ids:
+    # Ownership check: instructors can only delete their own assessments
+    scoped_domain_ids = await get_scoped_domain_ids(admin)
+    if scoped_domain_ids is not None and doc.get("createdBy") != admin["id"]:
         raise HTTPException(status_code=403, detail="You do not have access to this assessment")
 
     await assessments_collection.delete_one({"_id": ObjectId(assessment_id)})
@@ -254,8 +299,8 @@ async def upload_assessment_files(
         )
 
     # Ownership check
-    scoped_ids = await get_scoped_program_ids(admin)
-    if scoped_ids is not None and doc.get("programId") not in scoped_ids:
+    scoped_domain_ids = await get_scoped_domain_ids(admin)
+    if scoped_domain_ids is not None and doc.get("createdBy") != admin["id"]:
         raise HTTPException(status_code=403, detail="You do not have access to this assessment")
 
     async def upload_single(file):
@@ -293,8 +338,8 @@ async def lock_assessment(assessment_id: str, admin: dict = Depends(require_admi
         raise HTTPException(status_code=404, detail="Assessment not found")
 
     # Ownership check
-    scoped_ids = await get_scoped_program_ids(admin)
-    if scoped_ids is not None and doc.get("programId") not in scoped_ids:
+    scoped_domain_ids = await get_scoped_domain_ids(admin)
+    if scoped_domain_ids is not None and doc.get("createdBy") != admin["id"]:
         raise HTTPException(status_code=403, detail="You do not have access to this assessment")
 
     await assessments_collection.update_one(
@@ -311,8 +356,8 @@ async def unlock_assessment(assessment_id: str, admin: dict = Depends(require_ad
         raise HTTPException(status_code=404, detail="Assessment not found")
 
     # Ownership check
-    scoped_ids = await get_scoped_program_ids(admin)
-    if scoped_ids is not None and doc.get("programId") not in scoped_ids:
+    scoped_domain_ids = await get_scoped_domain_ids(admin)
+    if scoped_domain_ids is not None and doc.get("createdBy") != admin["id"]:
         raise HTTPException(status_code=403, detail="You do not have access to this assessment")
 
     await assessments_collection.update_one(
@@ -340,14 +385,10 @@ async def copy_assessment_to_programs(
     if not source:
         raise HTTPException(status_code=404, detail="Assessment not found")
 
-    # Ownership check: verify source and all targets are in scope
-    scoped_ids = await get_scoped_program_ids(admin)
-    if scoped_ids is not None:
-        if source.get("programId") not in scoped_ids:
-            raise HTTPException(status_code=403, detail="You do not have access to this assessment")
-        for pid in data.targetProgramIds:
-            if pid not in scoped_ids:
-                raise HTTPException(status_code=403, detail=f"You do not have access to program {pid}")
+    # Ownership check: instructors can only copy their own assessments
+    scoped_domain_ids = await get_scoped_domain_ids(admin)
+    if scoped_domain_ids is not None and source.get("createdBy") != admin["id"]:
+        raise HTTPException(status_code=403, detail="You do not have access to this assessment")
 
     if not data.targetProgramIds:
         raise HTTPException(status_code=400, detail="No target programs specified")
@@ -362,6 +403,7 @@ async def copy_assessment_to_programs(
     for pid in data.targetProgramIds:
         new_doc = {
             "programId": pid,
+            "domainId": source.get("domainId"),
             "title": source["title"],
             "description": source.get("description", ""),
             "attachedFiles": source.get("attachedFiles", []),
@@ -377,4 +419,3 @@ async def copy_assessment_to_programs(
         created.append(await assessment_doc_to_response(new_doc))
 
     return created
-

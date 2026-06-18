@@ -65,24 +65,21 @@ async def list_students(
         ]
 
     # Scope: instructors see students enrolled in their allocated domains
-    scoped_ids = await get_scoped_program_ids(admin)
-    if scoped_ids is not None:
-        # Not super admin — find domains allocated to this instructor
-        allocated_domains = []
-        async for d in domains_collection.find({"instructors": admin["id"]}):
-            allocated_domains.append(str(d["_id"]))
-
-        if allocated_domains:
+    from app.auth import get_scoped_domain_ids
+    scoped_domain_ids = await get_scoped_domain_ids(admin)
+    if scoped_domain_ids is not None:
+        # Not super admin — filter by instructor's allocated domains
+        if scoped_domain_ids:
             # Show students enrolled in any of the instructor's domains
             if "$or" in query:
                 # Merge with existing search $or by wrapping in $and
                 search_or = query.pop("$or")
                 query["$and"] = [
                     {"$or": search_or},
-                    {"enrolledSubjects": {"$in": allocated_domains}},
+                    {"enrolledSubjects": {"$in": scoped_domain_ids}},
                 ]
             else:
-                query["enrolledSubjects"] = {"$in": allocated_domains}
+                query["enrolledSubjects"] = {"$in": scoped_domain_ids}
         else:
             # Instructor has no domain allocations — show nothing
             return []

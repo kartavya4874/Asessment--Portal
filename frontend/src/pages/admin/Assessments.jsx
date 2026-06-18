@@ -26,6 +26,7 @@ export default function Assessments() {
 
     const [assessments, setAssessments] = useState([]);
     const [programs, setPrograms] = useState([]);
+    const [domains, setDomains] = useState([]);
     const [filterProgram, setFilterProgram] = useState('');
     const [filterStatus, setFilterStatus] = useState(getInitialStatus());
     const [search, setSearch] = useState('');
@@ -41,6 +42,7 @@ export default function Assessments() {
 
     useEffect(() => {
         client.get('/programs').then(res => setPrograms(res.data)).catch(() => { });
+        client.get('/domains').then(res => setDomains(res.data)).catch(() => { });
     }, []);
 
     useEffect(() => {
@@ -58,6 +60,7 @@ export default function Assessments() {
     };
 
     const getProgramName = (id) => programs.find(p => p.id === id)?.name || 'Unknown';
+    const getDomainName = (id) => domains.find(d => d.id === id)?.name || null;
 
     const inputStyle = {
         padding: '12px 16px',
@@ -150,6 +153,7 @@ export default function Assessments() {
                                                 {getStatusBadge(assessment.status)}
                                             </div>
                                             <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                                                {assessment.domainId && <span>📚 {getDomainName(assessment.domainId)}</span>}
                                                 <span>🎓 {getProgramName(assessment.programId)}</span>
                                                 <span>📅 {format(new Date(assessment.startAt), 'dd MMM yyyy, HH:mm')}</span>
                                                 <span>⏰ {format(new Date(assessment.deadline), 'dd MMM yyyy, HH:mm')}</span>

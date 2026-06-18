@@ -170,7 +170,7 @@ async def get_students_for_assessment(
     assessment_id: str,
     admin: dict = Depends(require_admin),
 ):
-    """Get all students enrolled in the assessment's program with their submission status."""
+    """Get all students enrolled in the assessment's domain/program with their submission status."""
     assessment = await assessments_collection.find_one(
         {"_id": ObjectId(assessment_id)}
     )
@@ -178,14 +178,21 @@ async def get_students_for_assessment(
         raise HTTPException(status_code=404, detail="Assessment not found")
 
     program_id = assessment["programId"]
+    domain_id = assessment.get("domainId")
 
     # Batch-fetch all submissions for this assessment in one query
     all_submissions = {}
     async for sub in submissions_collection.find({"assessmentId": assessment_id}):
         all_submissions[sub["studentId"]] = sub
 
+    # Build student query: if domain is set, filter by domain enrollment; else by program
+    if domain_id:
+        student_query = {"enrolledSubjects": domain_id}
+    else:
+        student_query = {"programId": program_id}
+
     students = []
-    async for student in students_collection.find({"programId": program_id}):
+    async for student in students_collection.find(student_query):
         sid = str(student["_id"])
         submission = all_submissions.get(sid)
 

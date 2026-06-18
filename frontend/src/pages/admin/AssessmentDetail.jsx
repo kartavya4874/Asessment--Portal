@@ -15,6 +15,7 @@ export default function AssessmentDetail() {
     const [assessment, setAssessment] = useState(null);
     const [students, setStudents] = useState([]);
     const [programs, setPrograms] = useState([]);
+    const [domains, setDomains] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -27,14 +28,16 @@ export default function AssessmentDetail() {
     useEffect(() => {
         const fetch = async () => {
             try {
-                const [aRes, sRes, pRes] = await Promise.all([
+                const [aRes, sRes, pRes, dRes] = await Promise.all([
                     client.get(`/assessments/${id}`),
                     client.get(`/submissions/students/${id}`),
                     client.get('/programs'),
+                    client.get('/domains'),
                 ]);
                 setAssessment(aRes.data);
                 setStudents(sRes.data);
                 setPrograms(pRes.data);
+                setDomains(dRes.data);
             } catch (err) { toast.error('Failed to load data'); }
             finally { setLoading(false); }
         };
@@ -181,6 +184,7 @@ export default function AssessmentDetail() {
     };
 
     const getProgramName = (pid) => programs.find(p => p.id === pid)?.name || 'Unknown';
+    const getDomainName = (did) => domains.find(d => d.id === did)?.name || null;
 
     if (loading) return <PageTransition><SkeletonTable rows={8} /></PageTransition>;
 
@@ -202,6 +206,7 @@ export default function AssessmentDetail() {
                                 <span className={`badge ${statusBadge[assessment.status]}`}>{assessment.status}</span>
                             </div>
                             <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                                {assessment.domainId && <span>📚 {getDomainName(assessment.domainId)}</span>}
                                 <span>🎓 {getProgramName(assessment.programId)}</span>
                                 <span>📅 {format(new Date(assessment.startAt), 'dd MMM yyyy, HH:mm')}</span>
                                 <span>⏰ {format(new Date(assessment.deadline), 'dd MMM yyyy, HH:mm')}</span>

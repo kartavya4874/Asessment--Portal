@@ -25,9 +25,8 @@ export default function StudentDashboard() {
     useEffect(() => {
         const fetchAll = async () => {
             try {
-                const { data: assessmentList } = await client.get('/assessments', {
-                    params: { programId: user.programId },
-                });
+                // Backend handles domain-based scoping for students
+                const { data: assessmentList } = await client.get('/assessments');
                 setAssessments(assessmentList);
 
                 const subsMap = {};
@@ -44,7 +43,7 @@ export default function StudentDashboard() {
             finally { setLoading(false); }
         };
         fetchAll();
-    }, [user.programId]);
+    }, []);
 
     const activeAssessments = assessments.filter(a => a.status === 'Active');
     const upcomingAssessments = assessments.filter(a => a.status === 'Upcoming');

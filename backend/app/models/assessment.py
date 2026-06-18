@@ -11,6 +11,7 @@ class AttachedFile(BaseModel):
 
 class AssessmentCreate(BaseModel):
     programId: str
+    domainId: Optional[str] = None  # Links assessment to a specific course/subject
     title: str
     description: str
     startAt: datetime
@@ -29,6 +30,7 @@ class AssessmentUpdate(BaseModel):
 class AssessmentResponse(BaseModel):
     id: str
     programId: str
+    domainId: Optional[str] = None
     title: str
     description: str
     attachedFiles: List[AttachedFile]

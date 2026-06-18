@@ -11,6 +11,8 @@ export default function AssessmentForm() {
     const { id } = useParams();
     const isEdit = !!id;
     const [programs, setPrograms] = useState([]);
+    const [domains, setDomains] = useState([]);
+    const [selectedDomainId, setSelectedDomainId] = useState('');
     const [selectedProgramIds, setSelectedProgramIds] = useState([]);
     const [form, setForm] = useState({
         programId: '', title: '', description: '', startAt: '', deadline: '', maxMarks: '',
@@ -21,9 +23,9 @@ export default function AssessmentForm() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        client.get('/programs')
-            .then(res => setPrograms(res.data))
-            .catch(() => { });
+        // Fetch programs and domains (courses)
+        client.get('/programs').then(res => setPrograms(res.data)).catch(() => { });
+        client.get('/domains').then(res => setDomains(res.data)).catch(() => { });
 
         if (isEdit) {
             client.get(`/assessments/${id}`)
@@ -37,6 +39,9 @@ export default function AssessmentForm() {
                         deadline: new Date(data.deadline).toISOString().slice(0, 16),
                         maxMarks: data.maxMarks ?? '',
                     });
+                    if (data.domainId) {
+                        setSelectedDomainId(data.domainId);
+                    }
                 })
                 .catch(() => toast.error('Failed to load assessment'))
                 .finally(() => setFetchLoading(false));
@@ -65,12 +70,13 @@ export default function AssessmentForm() {
         e.preventDefault();
 
         if (isEdit) {
-            // Edit mode: single program, use existing programId
             if (!form.programId || !form.title || !form.startAt || !form.deadline) {
                 toast.error('Please fill in all required fields'); return;
             }
         } else {
-            // Create mode: must select at least one program
+            if (!selectedDomainId) {
+                toast.error('Please select a course/domain'); return;
+            }
             if (selectedProgramIds.length === 0) {
                 toast.error('Please select at least one program'); return;
             }
@@ -90,7 +96,6 @@ export default function AssessmentForm() {
                 });
                 toast.success('Assessment updated!');
 
-                // Upload files if any
                 if (files.length > 0) {
                     const formData = new FormData();
                     files.forEach(f => formData.append('files', f));
@@ -105,6 +110,7 @@ export default function AssessmentForm() {
                 const firstProgramId = selectedProgramIds[0];
                 const payload = {
                     programId: firstProgramId,
+                    domainId: selectedDomainId,
                     title: form.title,
                     description: form.description,
                     maxMarks: form.maxMarks ? parseInt(form.maxMarks) : null,
@@ -115,7 +121,6 @@ export default function AssessmentForm() {
                 const { data: assessment } = await client.post('/assessments', payload);
                 const assessmentId = assessment.id;
 
-                // Upload files to the first assessment
                 if (files.length > 0) {
                     const formData = new FormData();
                     files.forEach(f => formData.append('files', f));
@@ -152,6 +157,7 @@ export default function AssessmentForm() {
 
     const allSelected = programs.length > 0 && selectedProgramIds.length === programs.length;
     const someSelected = selectedProgramIds.length > 0 && selectedProgramIds.length < programs.length;
+    const selectedDomain = domains.find(d => d.id === selectedDomainId);
 
     return (
         <PageTransition>
@@ -160,94 +166,192 @@ export default function AssessmentForm() {
                     {isEdit ? 'Edit Assessment' : 'New Assessment'}
                 </h1>
                 <p style={{ color: 'var(--text-secondary)', marginBottom: '28px' }}>
-                    {isEdit ? 'Update the details of this assessment' : 'Create a new lab assessment for your courses'}
+                    {isEdit ? 'Update the details of this assessment' : 'Create a new lab assessment for your course'}
                 </p>
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
                     {isEdit ? (
-                        /* Edit mode: show the existing program (read-only) */
-                        <div>
-                            <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Program</label>
-                            <div style={{
-                                padding: '12px 16px',
-                                background: 'rgba(124,108,240,0.04)',
-                                border: '1px solid var(--border)',
-                                borderRadius: '12px',
-                                fontSize: '14px',
-                                color: 'var(--text-primary)',
-                                opacity: 0.7,
-                            }}>
-                                {programs.find(p => p.id === form.programId)?.name || 'Loading...'}
+                        /* Edit mode: show existing course & program (read-only) */
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                            {selectedDomainId && (
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Course/Domain</label>
+                                    <div style={{
+                                        padding: '12px 16px',
+                                        background: 'rgba(124,108,240,0.04)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '12px',
+                                        fontSize: '14px',
+                                        color: 'var(--text-primary)',
+                                        opacity: 0.7,
+                                    }}>
+                                        📚 {domains.find(d => d.id === selectedDomainId)?.name || 'Loading...'}
+                                    </div>
+                                </div>
+                            )}
+                            <div>
+                                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>Program</label>
+                                <div style={{
+                                    padding: '12px 16px',
+                                    background: 'rgba(124,108,240,0.04)',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '12px',
+                                    fontSize: '14px',
+                                    color: 'var(--text-primary)',
+                                    opacity: 0.7,
+                                }}>
+                                    🎓 {programs.find(p => p.id === form.programId)?.name || 'Loading...'}
+                                </div>
                             </div>
                         </div>
                     ) : (
-                        /* Create mode: multi-select programs */
-                        <div>
-                            <label style={{
-                                display: 'block', fontSize: '13px', color: 'var(--text-secondary)',
-                                marginBottom: '10px', fontWeight: 600,
-                            }}>
-                                Select Programs *
-                            </label>
-                            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', opacity: 0.8 }}>
-                                The assessment will be created for all selected programs at once.
-                            </p>
+                        /* Create mode */
+                        <>
+                            {/* Step 1: Select Course/Domain */}
+                            <div>
+                                <label style={{
+                                    display: 'block', fontSize: '13px', color: 'var(--text-secondary)',
+                                    marginBottom: '8px', fontWeight: 600,
+                                }}>
+                                    📚 Select Your Course *
+                                </label>
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '10px', opacity: 0.8 }}>
+                                    Only your assigned courses are shown. The assessment will be visible only to students enrolled in this course.
+                                </p>
+                                {domains.length === 0 ? (
+                                    <div style={{
+                                        padding: '16px', background: 'rgba(255,107,107,0.06)',
+                                        border: '1px solid rgba(255,107,107,0.2)', borderRadius: '12px',
+                                        fontSize: '13px', color: 'var(--error)',
+                                    }}>
+                                        ⚠️ No courses assigned to you. Contact the super admin to assign courses to your account.
+                                    </div>
+                                ) : (
+                                    <div style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                                        gap: '8px',
+                                    }}>
+                                        {domains.map(d => {
+                                            const isSelected = selectedDomainId === d.id;
+                                            return (
+                                                <motion.div
+                                                    key={d.id}
+                                                    onClick={() => setSelectedDomainId(d.id)}
+                                                    whileHover={{ scale: 1.02 }}
+                                                    whileTap={{ scale: 0.98 }}
+                                                    style={{
+                                                        display: 'flex', alignItems: 'center', gap: '10px',
+                                                        padding: '12px 16px',
+                                                        background: isSelected
+                                                            ? 'linear-gradient(135deg, rgba(124,108,240,0.12), rgba(78,168,222,0.08))'
+                                                            : 'var(--surface)',
+                                                        borderRadius: '12px',
+                                                        cursor: 'pointer',
+                                                        border: `2px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border)'}`,
+                                                        transition: 'all 0.2s',
+                                                        userSelect: 'none',
+                                                    }}
+                                                >
+                                                    <div style={{
+                                                        width: 20, height: 20, borderRadius: '50%',
+                                                        border: `2px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border)'}`,
+                                                        background: isSelected ? 'var(--accent-primary)' : 'transparent',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        transition: 'all 0.2s', flexShrink: 0,
+                                                    }}>
+                                                        {isSelected && (
+                                                            <div style={{
+                                                                width: 8, height: 8, borderRadius: '50%',
+                                                                background: '#fff',
+                                                            }} />
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <div style={{
+                                                            fontSize: '14px', fontWeight: isSelected ? 700 : 500,
+                                                            color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)',
+                                                        }}>
+                                                            {d.name}
+                                                        </div>
+                                                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                                                            {d.code}
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
 
-                            {/* Select All toggle */}
-                            <motion.div
-                                onClick={toggleAll}
-                                whileHover={{ scale: 1.01 }}
-                                whileTap={{ scale: 0.99 }}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '10px',
-                                    padding: '10px 14px',
-                                    background: allSelected
-                                        ? 'linear-gradient(135deg, rgba(124,108,240,0.12), rgba(78,168,222,0.08))'
-                                        : 'rgba(124,108,240,0.03)',
-                                    borderRadius: '10px',
-                                    cursor: 'pointer',
-                                    border: `1px solid ${allSelected ? 'var(--accent-primary)' : 'var(--border)'}`,
-                                    marginBottom: '8px',
-                                    transition: 'all 0.2s',
-                                    userSelect: 'none',
-                                }}
-                            >
+                            {/* Step 2: Select Programs */}
+                            <div>
+                                <label style={{
+                                    display: 'block', fontSize: '13px', color: 'var(--text-secondary)',
+                                    marginBottom: '10px', fontWeight: 600,
+                                }}>
+                                    🎓 Select Programs *
+                                </label>
+                                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px', opacity: 0.8 }}>
+                                    Select which programs this assessment applies to.
+                                </p>
+
+                                {/* Select All toggle */}
+                                <motion.div
+                                    onClick={toggleAll}
+                                    whileHover={{ scale: 1.01 }}
+                                    whileTap={{ scale: 0.99 }}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '10px',
+                                        padding: '10px 14px',
+                                        background: allSelected
+                                            ? 'linear-gradient(135deg, rgba(124,108,240,0.12), rgba(78,168,222,0.08))'
+                                            : 'rgba(124,108,240,0.03)',
+                                        borderRadius: '10px',
+                                        cursor: 'pointer',
+                                        border: `1px solid ${allSelected ? 'var(--accent-primary)' : 'var(--border)'}`,
+                                        marginBottom: '8px',
+                                        transition: 'all 0.2s',
+                                        userSelect: 'none',
+                                    }}
+                                >
+                                    <div style={{
+                                        width: 20, height: 20, borderRadius: '6px',
+                                        border: `2px solid ${allSelected ? 'var(--accent-primary)' : someSelected ? 'var(--accent-primary)' : 'var(--border)'}`,
+                                        background: allSelected
+                                            ? 'var(--accent-primary)'
+                                            : someSelected
+                                                ? 'rgba(124,108,240,0.3)'
+                                                : 'transparent',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        transition: 'all 0.2s',
+                                        flexShrink: 0,
+                                    }}>
+                                        {(allSelected || someSelected) && (
+                                            <span style={{ color: '#fff', fontSize: '12px', fontWeight: 700 }}>
+                                                {allSelected ? '✓' : '−'}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span style={{
+                                        fontSize: '14px', fontWeight: 600,
+                                        color: allSelected ? 'var(--accent-primary)' : 'var(--text-primary)',
+                                    }}>
+                                        Select All Programs ({programs.length})
+                                    </span>
+                                </motion.div>
+
+                                {/* Program checkboxes */}
                                 <div style={{
-                                    width: 20, height: 20, borderRadius: '6px',
-                                    border: `2px solid ${allSelected ? 'var(--accent-primary)' : someSelected ? 'var(--accent-primary)' : 'var(--border)'}`,
-                                    background: allSelected
-                                        ? 'var(--accent-primary)'
-                                        : someSelected
-                                            ? 'rgba(124,108,240,0.3)'
-                                            : 'transparent',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    transition: 'all 0.2s',
-                                    flexShrink: 0,
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                                    gap: '6px',
+                                    maxHeight: '240px',
+                                    overflowY: 'auto',
+                                    padding: '4px',
                                 }}>
-                                    {(allSelected || someSelected) && (
-                                        <span style={{ color: '#fff', fontSize: '12px', fontWeight: 700 }}>
-                                            {allSelected ? '✓' : '−'}
-                                        </span>
-                                    )}
-                                </div>
-                                <span style={{
-                                    fontSize: '14px', fontWeight: 600,
-                                    color: allSelected ? 'var(--accent-primary)' : 'var(--text-primary)',
-                                }}>
-                                    Select All Programs ({programs.length})
-                                </span>
-                            </motion.div>
-
-                            {/* Program checkboxes */}
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                                gap: '6px',
-                                maxHeight: '240px',
-                                overflowY: 'auto',
-                                padding: '4px',
-                            }}>
-                                <AnimatePresence>
                                     {programs.map(p => {
                                         const isSelected = selectedProgramIds.includes(p.id);
                                         return (
@@ -256,7 +360,6 @@ export default function AssessmentForm() {
                                                 onClick={() => toggleProgram(p.id)}
                                                 whileHover={{ scale: 1.02 }}
                                                 whileTap={{ scale: 0.98 }}
-                                                layout
                                                 style={{
                                                     display: 'flex', alignItems: 'center', gap: '10px',
                                                     padding: '10px 14px',
@@ -291,28 +394,29 @@ export default function AssessmentForm() {
                                             </motion.div>
                                         );
                                     })}
-                                </AnimatePresence>
-                            </div>
+                                </div>
 
-                            {selectedProgramIds.length > 0 && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -5 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    style={{
-                                        marginTop: '10px',
-                                        padding: '8px 14px',
-                                        background: 'rgba(0,210,160,0.06)',
-                                        border: '1px solid rgba(0,210,160,0.2)',
-                                        borderRadius: '8px',
-                                        fontSize: '13px',
-                                        color: 'var(--success)',
-                                        fontWeight: 500,
-                                    }}
-                                >
-                                    ✅ {selectedProgramIds.length} program{selectedProgramIds.length > 1 ? 's' : ''} selected
-                                </motion.div>
-                            )}
-                        </div>
+                                {selectedProgramIds.length > 0 && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -5 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        style={{
+                                            marginTop: '10px',
+                                            padding: '8px 14px',
+                                            background: 'rgba(0,210,160,0.06)',
+                                            border: '1px solid rgba(0,210,160,0.2)',
+                                            borderRadius: '8px',
+                                            fontSize: '13px',
+                                            color: 'var(--success)',
+                                            fontWeight: 500,
+                                        }}
+                                    >
+                                        ✅ {selectedProgramIds.length} program{selectedProgramIds.length > 1 ? 's' : ''} selected
+                                        {selectedDomain && <span> • Course: <strong>{selectedDomain.name}</strong></span>}
+                                    </motion.div>
+                                )}
+                            </div>
+                        </>
                     )}
 
                     <div>

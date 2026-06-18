@@ -94,15 +94,35 @@ async def require_student(current_user: dict = Depends(get_current_user)) -> dic
     return current_user
 
 
+async def get_scoped_domain_ids(admin: dict) -> Optional[List[str]]:
+    """
+    Returns the list of domain (course/subject) IDs this admin is allowed to access.
+    - super_admin: returns None (meaning ALL domains, no filter)
+    - instructor: returns list of domain IDs they are assigned to
+    """
+    if admin.get("adminRole") == "super_admin":
+        return None  # No filter — super admin sees everything
+
+    # Check DB as fallback for the hardcoded email
+    from app.database import admins_collection, domains_collection
+    from bson import ObjectId
+    admin_doc = await admins_collection.find_one({"_id": ObjectId(admin["id"])})
+    if admin_doc and admin_doc.get("email") == "admin@geetauniversity.edu.in":
+        return None
+
+    # Instructor: return domains where this admin is listed as an instructor
+    domain_ids = []
+    async for d in domains_collection.find({"instructors": admin["id"]}, {"_id": 1}):
+        domain_ids.append(str(d["_id"]))
+    return domain_ids
+
+
+# Keep backward compat — old code references this; now it returns None (no program scoping)
 async def get_scoped_program_ids(admin: dict) -> Optional[List[str]]:
     """
-    Returns the list of program IDs this admin is allowed to access.
-    - super_admin: returns None (meaning ALL programs, no filter)
-    - instructor: returns None (all programs) — since programs are created
-      by super_admin and there is no per-instructor assignment mechanism,
-      all admins can access all programs.
+    Deprecated: program-level scoping replaced by domain-level scoping.
+    Returns None for all admins so existing programId-based checks pass through.
     """
-    # All admin roles (super_admin and instructor) can access all programs
     return None
 
 
@@ -115,4 +135,3 @@ def build_program_filter(scoped_ids: Optional[List[str]], field: str = "programI
     if scoped_ids is None:
         return {}
     return {field: {"$in": scoped_ids}}
-
