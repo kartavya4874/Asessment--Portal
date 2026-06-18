@@ -25,9 +25,8 @@ export default function Assessments() {
     };
 
     const [assessments, setAssessments] = useState([]);
-    const [programs, setPrograms] = useState([]);
     const [domains, setDomains] = useState([]);
-    const [filterProgram, setFilterProgram] = useState('');
+    const [filterDomain, setFilterDomain] = useState('');
     const [filterStatus, setFilterStatus] = useState(getInitialStatus());
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(true);
@@ -41,25 +40,23 @@ export default function Assessments() {
     }, [location.search]);
 
     useEffect(() => {
-        client.get('/programs').then(res => setPrograms(res.data)).catch(() => { });
         client.get('/domains').then(res => setDomains(res.data)).catch(() => { });
     }, []);
 
     useEffect(() => {
         setLoading(true);
-        const params = filterProgram ? { programId: filterProgram } : {};
+        const params = filterDomain ? { domainId: filterDomain } : {};
         client.get('/assessments', { params })
             .then(res => setAssessments(res.data))
             .catch(() => toast.error('Failed to load assessments'))
             .finally(() => setLoading(false));
-    }, [filterProgram]);
+    }, [filterDomain]);
 
     const getStatusBadge = (status) => {
         const classes = { Active: 'badge-active', Upcoming: 'badge-upcoming', Closed: 'badge-closed' };
         return <span className={`badge ${classes[status] || ''}`}>{status}</span>;
     };
 
-    const getProgramName = (id) => programs.find(p => p.id === id)?.name || 'Unknown';
     const getDomainName = (id) => domains.find(d => d.id === id)?.name || null;
 
     const inputStyle = {
@@ -88,9 +85,9 @@ export default function Assessments() {
                             placeholder="🔍 Search assessments..."
                             style={{ ...inputStyle, minWidth: '200px' }}
                         />
-                        <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} style={{ ...inputStyle, minWidth: '180px' }}>
-                            <option value="">All Programs</option>
-                            {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        <select value={filterDomain} onChange={(e) => setFilterDomain(e.target.value)} style={{ ...inputStyle, minWidth: '180px' }}>
+                            <option value="">All Courses</option>
+                            {domains.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                         </select>
                         <select value={filterStatus} onChange={(e) => {
                             setFilterStatus(e.target.value);
@@ -133,6 +130,7 @@ export default function Assessments() {
                             return a.title.toLowerCase().includes(q) || (a.description || '').toLowerCase().includes(q);
                         }).map(assessment => {
                             const sc = statusColors[assessment.status] || statusColors.Closed;
+                            const domainName = assessment.domainId ? getDomainName(assessment.domainId) : null;
                             return (
                                 <StaggerItem key={assessment.id}>
                                     <motion.div
@@ -153,8 +151,7 @@ export default function Assessments() {
                                                 {getStatusBadge(assessment.status)}
                                             </div>
                                             <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                                                {assessment.domainId && <span>📚 {getDomainName(assessment.domainId)}</span>}
-                                                <span>🎓 {getProgramName(assessment.programId)}</span>
+                                                {domainName && <span>📚 {domainName}</span>}
                                                 <span>📅 {format(new Date(assessment.startAt), 'dd MMM yyyy, HH:mm')}</span>
                                                 <span>⏰ {format(new Date(assessment.deadline), 'dd MMM yyyy, HH:mm')}</span>
                                                 <span>📎 {assessment.attachedFiles?.length || 0} files</span>

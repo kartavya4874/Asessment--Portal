@@ -139,21 +139,24 @@ async def get_assessment(
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_assessment(data: AssessmentCreate, admin: dict = Depends(require_admin)):
-    # Verify program exists
-    program = await programs_collection.find_one({"_id": ObjectId(data.programId)})
-    if not program:
-        raise HTTPException(status_code=400, detail="Invalid program")
+    # Verify program exists (if provided)
+    if data.programId:
+        program = await programs_collection.find_one({"_id": ObjectId(data.programId)})
+        if not program:
+            raise HTTPException(status_code=400, detail="Invalid program")
 
-    # If domainId is provided, verify domain exists
-    if data.domainId:
-        domain = await domains_collection.find_one({"_id": ObjectId(data.domainId)})
-        if not domain:
-            raise HTTPException(status_code=400, detail="Invalid domain/course")
-        
-        # Ownership check: instructors can only create assessments for their assigned domains
-        scoped_domain_ids = await get_scoped_domain_ids(admin)
-        if scoped_domain_ids is not None and data.domainId not in scoped_domain_ids:
-            raise HTTPException(status_code=403, detail="You do not have access to this course/domain")
+    # domainId is required for new assessments
+    if not data.domainId:
+        raise HTTPException(status_code=400, detail="Course/Domain is required")
+
+    domain = await domains_collection.find_one({"_id": ObjectId(data.domainId)})
+    if not domain:
+        raise HTTPException(status_code=400, detail="Invalid domain/course")
+    
+    # Ownership check: instructors can only create assessments for their assigned domains
+    scoped_domain_ids = await get_scoped_domain_ids(admin)
+    if scoped_domain_ids is not None and data.domainId not in scoped_domain_ids:
+        raise HTTPException(status_code=403, detail="You do not have access to this course/domain")
 
     if data.deadline <= data.startAt:
         raise HTTPException(status_code=400, detail="Deadline must be after start time")

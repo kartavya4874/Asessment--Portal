@@ -22,10 +22,8 @@ export default function AdminStudentDashboard() {
                 const { data: studentData } = await client.get(`/students/${id}`);
                 setStudent(studentData);
 
-                // 2. Fetch all assessments for their program
-                const { data: assessmentList } = await client.get('/assessments', {
-                    params: { programId: studentData.programId }
-                });
+                // 2. Fetch all assessments (backend scopes by domain)
+                const { data: assessmentList } = await client.get('/assessments');
                 setAssessments(assessmentList);
 
                 // 3. Fetch all their past submissions
@@ -230,7 +228,7 @@ export default function AdminStudentDashboard() {
                     <div className="card" style={{ textAlign: 'center', padding: '60px' }}>
                         <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
                         <h3 style={{ fontSize: '18px', marginBottom: '8px' }}>No Assessments</h3>
-                        <p style={{ color: 'var(--text-secondary)' }}>This student's program doesn't have any assessments yet.</p>
+                        <p style={{ color: 'var(--text-secondary)' }}>This student doesn't have any assessments yet.</p>
                     </div>
                 ) : (
                     <>

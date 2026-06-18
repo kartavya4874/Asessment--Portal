@@ -14,29 +14,23 @@ export default function AssessmentDetail() {
     const navigate = useNavigate();
     const [assessment, setAssessment] = useState(null);
     const [students, setStudents] = useState([]);
-    const [programs, setPrograms] = useState([]);
     const [domains, setDomains] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-    const [showCopyModal, setShowCopyModal] = useState(false);
-    const [selectedCopyPrograms, setSelectedCopyPrograms] = useState([]);
     const [tableSearch, setTableSearch] = useState('');
     const [sortBy, setSortBy] = useState('rollNumber');
-    const [copying, setCopying] = useState(false);
 
     useEffect(() => {
         const fetch = async () => {
             try {
-                const [aRes, sRes, pRes, dRes] = await Promise.all([
+                const [aRes, sRes, dRes] = await Promise.all([
                     client.get(`/assessments/${id}`),
                     client.get(`/submissions/students/${id}`),
-                    client.get('/programs'),
                     client.get('/domains'),
                 ]);
                 setAssessment(aRes.data);
                 setStudents(sRes.data);
-                setPrograms(pRes.data);
                 setDomains(dRes.data);
             } catch (err) { toast.error('Failed to load data'); }
             finally { setLoading(false); }
@@ -129,7 +123,7 @@ export default function AssessmentDetail() {
     const exportExcel = async () => {
         try {
             const response = await client.get(
-                `/export/program/${assessment.programId}/assessment/${id}`,
+                `/export/assessment/${id}`,
                 { responseType: 'blob' }
             );
             const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -157,33 +151,6 @@ export default function AssessmentDetail() {
         }
     };
 
-    const copyToPrograms = async () => {
-        if (selectedCopyPrograms.length === 0) {
-            toast.error('Select at least one program');
-            return;
-        }
-        setCopying(true);
-        try {
-            const { data } = await client.post(`/assessments/${id}/copy`, {
-                targetProgramIds: selectedCopyPrograms,
-            });
-            toast.success(`Copied to ${data.length} program(s)!`);
-            setShowCopyModal(false);
-            setSelectedCopyPrograms([]);
-        } catch (err) {
-            toast.error(getErrorDetail(err, 'Copy failed'));
-        } finally {
-            setCopying(false);
-        }
-    };
-
-    const toggleCopyProgram = (pid) => {
-        setSelectedCopyPrograms(prev =>
-            prev.includes(pid) ? prev.filter(p => p !== pid) : [...prev, pid]
-        );
-    };
-
-    const getProgramName = (pid) => programs.find(p => p.id === pid)?.name || 'Unknown';
     const getDomainName = (did) => domains.find(d => d.id === did)?.name || null;
 
     if (loading) return <PageTransition><SkeletonTable rows={8} /></PageTransition>;
@@ -207,7 +174,6 @@ export default function AssessmentDetail() {
                             </div>
                             <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                                 {assessment.domainId && <span>📚 {getDomainName(assessment.domainId)}</span>}
-                                <span>🎓 {getProgramName(assessment.programId)}</span>
                                 <span>📅 {format(new Date(assessment.startAt), 'dd MMM yyyy, HH:mm')}</span>
                                 <span>⏰ {format(new Date(assessment.deadline), 'dd MMM yyyy, HH:mm')}</span>
                                 {assessment.maxMarks != null && <span>📝 Max Marks: {assessment.maxMarks}</span>}
@@ -232,7 +198,7 @@ export default function AssessmentDetail() {
                             >
                                 {assessment.isLocked ? '🔓 Unlock' : '🔒 Lock'}
                             </motion.button>
-                            <motion.button className="btn-secondary" onClick={() => setShowCopyModal(true)} whileHover={{ scale: 1.03 }}>📋 Copy To Programs</motion.button>
+
                             <motion.button className="btn-secondary" onClick={exportExcel} whileHover={{ scale: 1.03 }}>📥 Export Excel</motion.button>
                             <motion.button
                                 className="btn-secondary"
@@ -397,7 +363,7 @@ export default function AssessmentDetail() {
 
                     {students.length === 0 && (
                         <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                            No students enrolled in this program yet.
+                            No students enrolled in this course yet.
                         </div>
                     )}
                 </div>
@@ -438,61 +404,6 @@ export default function AssessmentDetail() {
                 </div>
             )}
 
-            {/* Copy to Programs Modal */}
-            {showCopyModal && (
-                <div style={{
-                    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-                }} onClick={() => setShowCopyModal(false)}>
-                    <motion.div
-                        className="card"
-                        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                        style={{ maxWidth: '500px', width: '90%' }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <h3 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '4px' }}>📋 Copy Assessment</h3>
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                            Copy <strong>{assessment.title}</strong> to other programs. Select the target programs:
-                        </p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto', marginBottom: '20px' }}>
-                            {programs.filter(p => p.id !== assessment.programId).length === 0 ? (
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>No other programs available.</p>
-                            ) : (
-                                programs.filter(p => p.id !== assessment.programId).map(program => (
-                                    <label key={program.id} style={{
-                                        display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
-                                        background: selectedCopyPrograms.includes(program.id) ? 'var(--bg-secondary)' : 'transparent',
-                                        borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border)',
-                                        transition: 'background 0.15s',
-                                    }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedCopyPrograms.includes(program.id)}
-                                            onChange={() => toggleCopyProgram(program.id)}
-                                            style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)' }}
-                                        />
-                                        <span style={{ fontSize: '14px', fontWeight: 500 }}>{program.name}</span>
-                                    </label>
-                                ))
-                            )}
-                        </div>
-                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                            <motion.button className="btn-secondary" onClick={() => { setShowCopyModal(false); setSelectedCopyPrograms([]); }} whileHover={{ scale: 1.03 }}>
-                                Cancel
-                            </motion.button>
-                            <motion.button
-                                className="btn-primary"
-                                onClick={copyToPrograms}
-                                disabled={copying || selectedCopyPrograms.length === 0}
-                                whileHover={{ scale: 1.03 }}
-                                style={{ opacity: selectedCopyPrograms.length === 0 ? 0.5 : 1 }}
-                            >
-                                {copying ? '⏳ Copying...' : `📋 Copy to ${selectedCopyPrograms.length} Program${selectedCopyPrograms.length !== 1 ? 's' : ''}`}
-                            </motion.button>
-                        </div>
-                    </motion.div>
-                </div>
-            )}
         </PageTransition>
     );
 }

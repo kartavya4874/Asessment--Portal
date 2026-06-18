@@ -10,7 +10,7 @@ class AttachedFile(BaseModel):
 
 
 class AssessmentCreate(BaseModel):
-    programId: str
+    programId: Optional[str] = ""  # Kept for backward compat; new assessments use domainId
     domainId: Optional[str] = None  # Links assessment to a specific course/subject
     title: str
     description: str
