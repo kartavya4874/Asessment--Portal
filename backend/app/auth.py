@@ -98,16 +98,12 @@ async def get_scoped_program_ids(admin: dict) -> Optional[List[str]]:
     """
     Returns the list of program IDs this admin is allowed to access.
     - super_admin: returns None (meaning ALL programs, no filter)
-    - instructor: returns list of program IDs they created
+    - instructor: returns None (all programs) — since programs are created
+      by super_admin and there is no per-instructor assignment mechanism,
+      all admins can access all programs.
     """
-    if admin.get("adminRole") == "super_admin":
-        return None  # No filter — super admin sees everything
-
-    from app.database import programs_collection
-    program_ids = []
-    async for p in programs_collection.find({"createdBy": admin["id"]}, {"_id": 1}):
-        program_ids.append(str(p["_id"]))
-    return program_ids
+    # All admin roles (super_admin and instructor) can access all programs
+    return None
 
 
 def build_program_filter(scoped_ids: Optional[List[str]], field: str = "programId") -> dict:
